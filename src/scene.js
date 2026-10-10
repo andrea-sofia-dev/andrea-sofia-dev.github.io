@@ -218,8 +218,8 @@ export function createScene({
       // The pit box in front of the garage of the project being read: three-quarter view from the track.
       frameAt(ANCHORS[2]);
       const box = track.beside(ANCHORS[2], PIT_LATERAL, tmp2);
-      pos.copy(box).addScaledVector(O, -16).addScaledVector(F, 10).addScaledVector(UP, 7.5);
-      look.copy(box).addScaledVector(O, 3.5).addScaledVector(UP, 1.4);
+      pos.copy(box).addScaledVector(O, -9.5).addScaledVector(F, 7).addScaledVector(UP, 4.2);
+      look.copy(box).addScaledVector(O, 1.2).addScaledVector(UP, 0.9);
     },
     (pos, look) => {
       // The paddock gym, close enough to read the plates.
