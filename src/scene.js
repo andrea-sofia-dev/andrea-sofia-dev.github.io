@@ -3,12 +3,12 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Terminal } from './terminal.js';
 import { Track } from './world/track.js';
 import { createCar } from './world/car.js';
-import { buildBase, lightPool } from './world/base.js';
+import { buildBase, lightPool, faceTrack } from './world/base.js';
+import { buildArcade } from './world/arcade.js';
 import { buildGym } from './world/gym.js';
 
 const BG = 0x04060b;
@@ -18,9 +18,9 @@ const ANCHORS = [-0.012, 0.1, 0.47, 0.74, 1.015];
 // Where things stand around the circuit.
 const SPOTS = {
   screen: 0.112,
-  tower: 0.05,
-  radar: 0.165,
-  hangars: [0.43, 0.47, 0.51],
+  garages: [0.43, 0.47, 0.51],
+  checkpoints: [0.04, 0.415, 0.705],
+  items: [0.26, 0.6, 0.88],
   gym: 0.74,
   floodlights: [0.03, 0.22, 0.3, 0.36, 0.6, 0.66, 0.84, 0.92],
 };
@@ -65,7 +65,7 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
   const base = buildBase({ track, nodes, screenTexture: terminal.texture, spots: SPOTS });
   scene.add(base.group);
 
-  const gym = buildGym({ skills, signText: 'TRAINING AREA' });
+  const gym = buildGym({ skills, signText: 'DRIVER TRAINING' });
   track.beside(SPOTS.gym, 17, gym.group.position);
   faceTrack(track, gym.group, SPOTS.gym);
   scene.add(gym.group);
@@ -73,39 +73,15 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
   // Pools of light where the action is.
   const tmp = new THREE.Vector3();
   lightPool(track.beside(SPOTS.screen, 9, tmp), 9, 0x9fe8ff, 0.14);
-  for (const u of SPOTS.hangars) lightPool(track.beside(u, 13, tmp), 7, 0xcfdcff, 0.12);
+  for (const u of SPOTS.garages) lightPool(track.beside(u, 12, tmp), 7, 0xcfdcff, 0.12);
   lightPool(track.beside(SPOTS.gym, 16, tmp), 10, 0xffd9a8, 0.14);
   lightPool(track.beside(0, 0, tmp), 8, 0xcfdcff, 0.12);
 
+  const arcade = buildArcade({ track, checkpoints: SPOTS.checkpoints, itemRows: SPOTS.items, animated: !reducedMotion });
+  scene.add(arcade.group);
+
   const car = createCar({ envMap });
   scene.add(car.object);
-
-  // ---------- objective markers (A to E) ----------
-  const objectives = [];
-  function marker(letter, name, color, parent, height, link) {
-    const el = document.createElement('div');
-    el.className = 'marker';
-    el.style.setProperty('--c', color);
-    el.innerHTML = '<span class="marker-tag"></span><span class="marker-text"><b></b><i></i></span>';
-    el.querySelector('.marker-tag').textContent = letter;
-    el.querySelector('b').textContent = name;
-    const dist = el.querySelector('i');
-    el.addEventListener('click', () => onNodeClick?.(link));
-    el.addEventListener('pointerenter', () => setHovered(link));
-    el.addEventListener('pointerleave', () => setHovered(null));
-    const object = new CSS2DObject(el);
-    object.position.set(0, height, 0);
-    parent.add(object);
-    objectives.push({ el, dist, object, link, metres: -1, world: new THREE.Vector3() });
-  }
-  marker('A', 'workflow', '#38e1ff', base.screen, 12.8, 'how');
-  base.hangars.forEach((h, i) => {
-    const color = `#${new THREE.Color(nodes[i].color).getHexString()}`;
-    marker(String.fromCharCode(66 + i), nodes[i].label, color, h.group, h.markerHeight, h.id);
-  });
-  marker('E', 'training', '#f5a524', gym.group, 8, 'stack');
-  // The objective each section is about (CoD-style "next objective").
-  const CURRENT = [['how'], ['how'], nodes.map((n) => n.id), ['stack'], []];
 
   // ---------- rendering ----------
   const composer = new EffectComposer(renderer);
@@ -113,7 +89,6 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
   composer.addPass(new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.45, 0.6));
   composer.addPass(new OutputPass());
   let useBloom = true;
-  const labels = new CSS2DRenderer({ element: labelLayer });
 
   let distanceScale = 1;
   function resize() {
@@ -122,7 +97,6 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
     renderer.setSize(w, h, false);
     composer.setPixelRatio(pixelRatio);
     composer.setSize(w, h);
-    labels.setSize(w, h);
     camera.aspect = w / h;
     const portrait = camera.aspect < 1;
     camera.fov = portrait ? 55 : 42;
@@ -146,7 +120,7 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
   base.group.updateMatrixWorld(true);
   gym.group.updateMatrixWorld(true);
   const screenCentre = base.screen.localToWorld(new THREE.Vector3(0, 7.3, 0));
-  const hangarMid = base.hangars[1].group.position.clone();
+  const garageMid = base.garages[1].group.position.clone();
   const rackCentre = gym.group.localToWorld(new THREE.Vector3(0, 2.9, -3));
 
   // Each shot writes a camera position and a point to look at.
@@ -164,10 +138,10 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
       look.copy(screenCentre).lerp(P, 0.3);
     },
     (pos, look) => {
-      // The three hangars, seen from the infield.
+      // The three team garages, seen from the infield.
       frameAt(ANCHORS[2]);
       pos.copy(P).addScaledVector(O, -15).addScaledVector(F, -2).addScaledVector(UP, 8);
-      look.copy(hangarMid).addScaledVector(UP, 2.5).addScaledVector(O, -3);
+      look.copy(garageMid).addScaledVector(UP, 2.5).addScaledVector(O, -3);
     },
     (pos, look) => {
       // The training area, close enough to read the plates.
@@ -198,7 +172,7 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
   const parallaxTarget = new THREE.Vector2();
   let mouseOnCanvas = false;
   const raycaster = new THREE.Raycaster();
-  const hitTargets = base.hangars.map((h) => h.hit);
+  const hitTargets = base.garages.map((g) => g.hit);
 
   function setHovered(id) {
     if (hovered === id) return;
@@ -245,7 +219,7 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
   timer.connect(document);
   let elapsed = 0;
   let carU = ANCHORS[0];
-  const glow = new Map(base.hangars.map((h) => [h.id, 0]));
+  const glow = new Map(base.garages.map((g) => [g.id, 0]));
   const shotPos = new THREE.Vector3();
   const shotLook = new THREE.Vector3();
   const chasePos = new THREE.Vector3();
@@ -289,22 +263,8 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
     return driving;
   }
 
-  function updateMarkers() {
-    const section = Math.round(progress);
-    for (const o of objectives) {
-      o.object.getWorldPosition(o.world);
-      const metres = Math.round(o.world.distanceTo(car.object.position));
-      if (metres !== o.metres) {
-        o.metres = metres;
-        o.dist.textContent = `${metres} m`;
-      }
-      o.el.classList.toggle('is-current', CURRENT[section]?.includes(o.link) ?? false);
-      o.el.classList.toggle('is-hovered', hovered === o.link || linked === o.link);
-    }
-  }
-
   function updateGlow(dt) {
-    for (const h of base.hangars) {
+    for (const h of base.garages) {
       const target = hovered === h.id || linked === h.id ? 1 : 0;
       const k = reducedMotion ? target : THREE.MathUtils.damp(glow.get(h.id), target, 8, dt);
       glow.set(h.id, k);
@@ -323,7 +283,6 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
   function render() {
     if (useBloom) composer.render();
     else renderer.render(scene, camera);
-    labels.render(scene, camera);
   }
 
   function tick(timestamp) {
@@ -339,7 +298,7 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
       camera.lookAt(lookAt);
       startLights(0);
       updateGlow(dt);
-      updateMarkers();
+      arcade.update(0, car.object.position);
       render();
       needsRender = false;
       return;
@@ -369,10 +328,11 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
 
     terminal.update(dt);
     base.update(elapsed);
+    car.update(elapsed);
+    arcade.update(elapsed, car.object.position);
     startLights(elapsed);
     updateGlow(dt);
     if (mouseOnCanvas) pick();
-    updateMarkers();
 
     render();
 
@@ -418,12 +378,6 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
       needsRender = true;
     },
   };
-}
-
-function faceTrack(track, object, u) {
-  const p = track.at(u, new THREE.Vector3());
-  p.y = object.position.y;
-  object.lookAt(p);
 }
 
 // Holds on each section while it is centred, moves in between.

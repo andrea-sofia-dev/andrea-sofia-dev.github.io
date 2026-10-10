@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-// The base's training area: a plate rack with one plate per tool, a squat rack,
+// The paddock gym: a plate rack with one plate per tool, a squat rack,
 // kettlebells and a tyre to flip. Local +z faces the track.
 
 // Olympic plate colours by weight.
@@ -178,19 +178,13 @@ function stencilTexture(text) {
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#0c0d10';
   ctx.fillRect(0, 0, 700, 105);
-  // Hazard stripes on both ends.
-  for (let x = -20; x < 700; x += 26) {
-    if (x > 70 && x < 610) continue;
-    ctx.fillStyle = '#f5a524';
-    ctx.beginPath();
-    ctx.moveTo(x, 105);
-    ctx.lineTo(x + 13, 105);
-    ctx.lineTo(x + 33, 0);
-    ctx.lineTo(x + 20, 0);
-    ctx.fill();
-  }
+  ctx.strokeStyle = '#f5a524';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(8, 8, 684, 89);
   ctx.fillStyle = '#f5a524';
-  ctx.font = '700 58px "JetBrains Mono Variable", Consolas, monospace';
+  ctx.shadowColor = '#f5a524';
+  ctx.shadowBlur = 12;
+  ctx.font = '700 52px "JetBrains Mono Variable", Consolas, monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(text, 350, 56);

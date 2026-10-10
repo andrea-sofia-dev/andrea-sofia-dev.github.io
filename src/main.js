@@ -1,5 +1,6 @@
 import '@fontsource-variable/space-grotesk';
 import '@fontsource-variable/jetbrains-mono';
+import '@fontsource/press-start-2p';
 import './style.css';
 import { it as IT, nodes, skills, terminalScripts } from './content.js';
 
@@ -134,7 +135,7 @@ function onNodeHover(id) {
   for (const [cardId, card] of cards) card.classList.toggle('is-linked', cardId === id);
 }
 
-// A click on a hangar opens its project card; the other objectives lead to their section.
+// A click on a garage opens its project card.
 function onNodeClick(id) {
   const card = cards.get(id);
   if (!card) {
