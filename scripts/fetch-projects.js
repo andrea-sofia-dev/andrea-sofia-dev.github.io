@@ -15,7 +15,7 @@ const TOPIC = process.env.PORTFOLIO_TOPIC || 'portfolio';
 const API = process.env.GITHUB_API || 'https://api.github.com';
 const MAX = 12;
 // Shown as hand-written cards already, or not projects at all.
-const SKIP = new Set([USER, `${USER}.github.io`, 'wp-doctor', 'wordpress-performance-case-study', 'roma-night-gp']);
+const SKIP = new Set([USER, `${USER}.github.io`, 'wp-doctor', 'wordpress-performance-case-study']);
 const OUT = new URL('../src/generated/projects.json', import.meta.url);
 
 const headers = {

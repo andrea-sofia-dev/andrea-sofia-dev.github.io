@@ -16,7 +16,6 @@
   --cyan: #38e1ff;
   --violet: #a78bfa;
   --mint: #5cf2b0;
-  --rose: #ff5f7a;
   --font: 'Space Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
   --mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Consolas, monospace;
   --gutter: clamp(16px, 5vw, 72px);
@@ -546,25 +545,6 @@ p {
   margin: 14px 0 0;
   color: var(--faint);
   font-size: 12px;
-}
-
-/* Demo and source links under a project. */
-.links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 18px;
-  margin: 0;
-  font-size: 13px;
-}
-
-.links a {
-  color: var(--c);
-  text-decoration: none;
-}
-
-.links a:hover {
-  text-decoration: underline;
-  text-underline-offset: 4px;
 }
 
 /* "More projects": repositories tagged on GitHub, filled in at build time. */

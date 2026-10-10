@@ -497,7 +497,6 @@ function holdEase(t) {
 function shapeGeometry(shape) {
   if (shape === 'octahedron') return new THREE.OctahedronGeometry(0.34, 0);
   if (shape === 'dodecahedron') return new THREE.DodecahedronGeometry(0.3, 0);
-  if (shape === 'tetrahedron') return new THREE.TetrahedronGeometry(0.38, 0);
   return new THREE.IcosahedronGeometry(0.32, 0);
 }
 
