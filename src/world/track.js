@@ -69,10 +69,11 @@ export class Track {
   }
 
   build() {
-    const asphalt = new THREE.MeshStandardMaterial({ color: 0x17191f, roughness: 0.9 });
+    // The scene makes it slightly see-through when a wet-road mirror lies underneath.
+    this.asphalt = new THREE.MeshStandardMaterial({ color: 0x15171d, roughness: 0.55, metalness: 0.1 });
     const paint = new THREE.MeshBasicMaterial({ color: 0x9aa2b0 });
     this.group.add(
-      new THREE.Mesh(this.ribbon(-WIDTH / 2, WIDTH / 2, 0.03), asphalt),
+      new THREE.Mesh(this.ribbon(-WIDTH / 2, WIDTH / 2, 0.03), this.asphalt),
       new THREE.Mesh(this.ribbon(WIDTH / 2 - 0.45, WIDTH / 2 - 0.25, 0.04), paint),
       new THREE.Mesh(this.ribbon(-WIDTH / 2 + 0.25, -WIDTH / 2 + 0.45, 0.04), paint),
       this.kerbs(),
@@ -80,21 +81,35 @@ export class Track {
     );
   }
 
-  // A strip that follows the track, from `from` to `to` metres off the centre line.
-  ribbon(from, to, y) {
-    const pos = new Float32Array((SAMPLES + 1) * 6);
-    for (let i = 0; i <= SAMPLES; i++) {
+  // A strip that follows the track, `from` to `to` metres off the centre line, between lap fractions u0 and u1.
+  // uv.x goes across (0 to 1), uv.y along the track in metres. With xy = true the strip lies in the
+  // local XY plane (for a mirror, which must be rotated flat afterwards).
+  ribbon(from, to, y, u0 = 0, u1 = 1, xy = false) {
+    const i0 = Math.round(u0 * SAMPLES);
+    const i1 = Math.round(u1 * SAMPLES);
+    const n = i1 - i0;
+    const pos = new Float32Array((n + 1) * 6);
+    const uv = new Float32Array((n + 1) * 4);
+    const step = this.length / SAMPLES;
+    for (let k = 0; k <= n; k++) {
+      const i = (((i0 + k) % SAMPLES) + SAMPLES) % SAMPLES;
       const p = this.points[i];
       const s = this.sides[i];
-      pos.set([p.x + s.x * from, y, p.z + s.z * from, p.x + s.x * to, y, p.z + s.z * to], i * 6);
+      const ax = p.x + s.x * from;
+      const az = p.z + s.z * from;
+      const bx = p.x + s.x * to;
+      const bz = p.z + s.z * to;
+      pos.set(xy ? [ax, -az, 0, bx, -bz, 0] : [ax, y, az, bx, y, bz], k * 6);
+      uv.set([0, k * step, 1, k * step], k * 4);
     }
     const index = [];
-    for (let i = 0; i < SAMPLES; i++) {
-      const a = i * 2;
+    for (let k = 0; k < n; k++) {
+      const a = k * 2;
       index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
     }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     geometry.setIndex(index);
     geometry.computeVertexNormals();
     return geometry;

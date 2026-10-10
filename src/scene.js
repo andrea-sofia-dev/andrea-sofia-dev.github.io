@@ -3,12 +3,13 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { Reflector } from 'three/addons/objects/Reflector.js';
 import { Terminal } from './terminal.js';
-import { Track } from './world/track.js';
+import { Track, WIDTH } from './world/track.js';
 import { createCar } from './world/car.js';
 import { buildBase, lightPool, faceTrack } from './world/base.js';
-import { buildArcade } from './world/arcade.js';
+import { buildStreet } from './world/street.js';
 import { buildGym } from './world/gym.js';
 
 const BG = 0x04060b;
@@ -19,14 +20,47 @@ const ANCHORS = [-0.012, 0.1, 0.47, 0.74, 1.015];
 const SPOTS = {
   screen: 0.112,
   garages: [0.43, 0.47, 0.51],
-  checkpoints: [0.04, 0.415, 0.705],
-  items: [0.26, 0.6, 0.88],
+  gates: [0.04, 0.415, 0.705],
+  trap: 0.6,
   gym: 0.74,
   floodlights: [0.03, 0.22, 0.3, 0.36, 0.6, 0.66, 0.84, 0.92],
 };
 const UP = new THREE.Vector3(0, 1, 0);
+const TOP_SPEED = 70; // metres per second that count as "flat out"
 
-export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, reducedMotion, onNodeHover, onNodeClick }) {
+// Vignette, a touch of film grain and chromatic aberration that grows with speed.
+const FinishShader = {
+  uniforms: { tDiffuse: { value: null }, uSpeed: { value: 0 }, uTime: { value: 0 } },
+  vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: /* glsl */ `
+    uniform sampler2D tDiffuse;
+    uniform float uSpeed;
+    uniform float uTime;
+    varying vec2 vUv;
+    float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+    void main() {
+      vec2 c = vUv - 0.5;
+      float d = dot(c, c);
+      vec2 shift = c * d * (0.01 + uSpeed * 0.045);
+      vec3 col = vec3(
+        texture2D(tDiffuse, vUv + shift).r,
+        texture2D(tDiffuse, vUv).g,
+        texture2D(tDiffuse, vUv - shift).b
+      );
+      col *= 1.0 - d * (1.15 + uSpeed * 0.6);
+      col += (hash(vUv * 900.0 + uTime) - 0.5) * 0.025;
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `,
+};
+
+export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, reducedMotion, onNodeHover, onNodeClick, onEvent }) {
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -46,10 +80,10 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
   scene.fog = new THREE.FogExp2(BG, 0.014);
 
   const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 600);
+  scene.add(camera); // the speed lines ride with it
+  let baseFov = 42;
 
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  pmrem.dispose();
+  const envMap = nightEnvironment(renderer);
 
   // ---------- night lighting ----------
   scene.add(new THREE.HemisphereLight(0x3b4a70, 0x050608, 0.6));
@@ -61,6 +95,24 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
   const track = new Track();
   scene.add(track.group);
 
+  // Wet asphalt: a mirror the shape of the track, seen through a slightly transparent road.
+  let mirror = null;
+  if (!small) {
+    mirror = new Reflector(track.ribbon(-WIDTH / 2, WIDTH / 2, 0, 0, 1, true), {
+      clipBias: 0.003,
+      textureWidth: 512,
+      textureHeight: 512,
+      color: 0x5d6472,
+      multisample: 0,
+    });
+    mirror.material.side = THREE.DoubleSide;
+    mirror.rotation.x = -Math.PI / 2;
+    mirror.position.y = 0.005;
+    scene.add(mirror);
+    track.asphalt.transparent = true;
+    track.asphalt.opacity = 0.72;
+  }
+
   const terminal = new Terminal({ scripts, lang, animated: !reducedMotion });
   const base = buildBase({ track, nodes, screenTexture: terminal.texture, spots: SPOTS });
   scene.add(base.group);
@@ -70,24 +122,28 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
   faceTrack(track, gym.group, SPOTS.gym);
   scene.add(gym.group);
 
+  const street = buildStreet({ track, gates: SPOTS.gates, trap: SPOTS.trap });
+  scene.add(street.group);
+
   // Pools of light where the action is.
   const tmp = new THREE.Vector3();
   lightPool(track.beside(SPOTS.screen, 9, tmp), 9, 0x9fe8ff, 0.14);
   for (const u of SPOTS.garages) lightPool(track.beside(u, 12, tmp), 7, 0xcfdcff, 0.12);
-  lightPool(track.beside(SPOTS.gym, 16, tmp), 10, 0xffd9a8, 0.14);
   lightPool(track.beside(0, 0, tmp), 8, 0xcfdcff, 0.12);
-
-  const arcade = buildArcade({ track, checkpoints: SPOTS.checkpoints, itemRows: SPOTS.items, animated: !reducedMotion });
-  scene.add(arcade.group);
 
   const car = createCar({ envMap });
   scene.add(car.object);
 
+  const speedLines = makeSpeedLines(small ? 40 : 90);
+  camera.add(speedLines.group);
+
   // ---------- rendering ----------
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  composer.addPass(new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.45, 0.6));
+  composer.addPass(new UnrealBloomPass(new THREE.Vector2(256, 256), 0.55, 0.45, 0.6));
   composer.addPass(new OutputPass());
+  const finish = new ShaderPass(FinishShader);
+  composer.addPass(finish);
   let useBloom = true;
 
   let distanceScale = 1;
@@ -97,9 +153,11 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
     renderer.setSize(w, h, false);
     composer.setPixelRatio(pixelRatio);
     composer.setSize(w, h);
+    mirror?.getRenderTarget().setSize(Math.round(w * pixelRatio * 0.5), Math.round(h * pixelRatio * 0.5));
     camera.aspect = w / h;
     const portrait = camera.aspect < 1;
-    camera.fov = portrait ? 55 : 42;
+    baseFov = portrait ? 55 : 42;
+    camera.fov = baseFov;
     distanceScale = portrait ? 1 + (1 - camera.aspect) * 0.9 : 1;
     // Wide screens: the text panel ends ~580 px from the left, so the scene centres in the space after it.
     // Narrow screens: text at the bottom, so the scene moves up.
@@ -121,7 +179,7 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
   gym.group.updateMatrixWorld(true);
   const screenCentre = base.screen.localToWorld(new THREE.Vector3(0, 7.3, 0));
   const garageMid = base.garages[1].group.position.clone();
-  const rackCentre = gym.group.localToWorld(new THREE.Vector3(0, 2.9, -3));
+  const rackCentre = gym.group.localToWorld(new THREE.Vector3(0, 2.9, -5.2));
 
   // Each shot writes a camera position and a point to look at.
   const SHOTS = [
@@ -132,7 +190,7 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
       look.copy(P).addScaledVector(F, 5).addScaledVector(UP, 2.6);
     },
     (pos, look) => {
-      // The big screen with the agent session, the car parked in front.
+      // The pit wall screen with the agent session, the car parked in front.
       frameAt(ANCHORS[1]);
       pos.copy(P).addScaledVector(O, -11).addScaledVector(F, -12).addScaledVector(UP, 5.5);
       look.copy(screenCentre).lerp(P, 0.3);
@@ -144,13 +202,13 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
       look.copy(garageMid).addScaledVector(UP, 2.5).addScaledVector(O, -3);
     },
     (pos, look) => {
-      // The training area, close enough to read the plates.
+      // The paddock gym, close enough to read the plates.
       frameAt(ANCHORS[3]);
-      pos.copy(rackCentre).addScaledVector(O, -15).addScaledVector(F, -5).addScaledVector(UP, 1.6);
-      look.copy(rackCentre).addScaledVector(O, -2);
+      pos.copy(rackCentre).addScaledVector(O, -21).addScaledVector(F, -6).addScaledVector(UP, 2.6);
+      look.copy(rackCentre).addScaledVector(O, -4).addScaledVector(UP, -0.6);
     },
     (pos, look) => {
-      // Mission complete: the whole airfield from above.
+      // Finish: the whole circuit from above.
       pos.copy(track.centre).add(tmp.set(8, 96, 78));
       look.copy(track.centre).add(tmp.set(4, 0, -6));
     },
@@ -158,7 +216,7 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
 
   function chase(u, pos, look) {
     frameAt(u);
-    pos.copy(car.object.position).addScaledVector(F, -10.5).addScaledVector(UP, 3.8).addScaledVector(O, 1.2);
+    pos.copy(car.object.position).addScaledVector(F, -10.5).addScaledVector(UP, 3.4).addScaledVector(O, 1.2);
     look.copy(car.object.position).addScaledVector(F, 9).addScaledVector(UP, 0.9);
   }
 
@@ -219,6 +277,7 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
   timer.connect(document);
   let elapsed = 0;
   let carU = ANCHORS[0];
+  let speed = 0; // 0 to 1
   const glow = new Map(base.garages.map((g) => [g.id, 0]));
   const shotPos = new THREE.Vector3();
   const shotLook = new THREE.Vector3();
@@ -264,11 +323,11 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
   }
 
   function updateGlow(dt) {
-    for (const h of base.garages) {
-      const target = hovered === h.id || linked === h.id ? 1 : 0;
-      const k = reducedMotion ? target : THREE.MathUtils.damp(glow.get(h.id), target, 8, dt);
-      glow.set(h.id, k);
-      h.glow(k);
+    for (const g of base.garages) {
+      const target = hovered === g.id || linked === g.id ? 1 : 0;
+      const k = reducedMotion ? target : THREE.MathUtils.damp(glow.get(g.id), target, 8, dt);
+      glow.set(g.id, k);
+      g.glow(k);
     }
   }
 
@@ -298,7 +357,6 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
       camera.lookAt(lookAt);
       startLights(0);
       updateGlow(dt);
-      arcade.update(0, car.object.position);
       render();
       needsRender = false;
       return;
@@ -310,16 +368,26 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
     const before = carU;
     carU = THREE.MathUtils.damp(carU, targetU(progress), 2.4, dt);
     placeCar(carU);
-    car.roll((carU - before) * track.length);
+    const metres = (carU - before) * track.length;
+    car.roll(metres);
+    speed = THREE.MathUtils.damp(speed, Math.min(Math.abs(metres) / Math.max(dt, 1e-3) / TOP_SPEED, 1), 4, dt);
 
     const driving = cameraFor(progress, desiredPos, desiredLook);
     parallax.lerp(parallaxTarget, 1 - Math.exp(-dt * 3));
     desiredPos.x += parallax.x * 0.6 * (1 - driving);
     desiredPos.y += parallax.y * 0.35 * (1 - driving);
+    // A little shake at full speed.
+    desiredPos.y += Math.sin(elapsed * 41) * 0.03 * speed;
     const ease = 1 - Math.exp(-dt * (driving > 0.5 ? 6 : 3.2));
     camera.position.lerp(desiredPos, ease);
     lookAt.lerp(desiredLook, ease);
     camera.lookAt(lookAt);
+    // The view widens with speed.
+    const fov = baseFov + speed * 9;
+    if (Math.abs(camera.fov - fov) > 0.05) {
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+    }
 
     // Thinner fog for the view from above.
     const overview = smooth(3.4, 4, progress);
@@ -328,15 +396,20 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
 
     terminal.update(dt);
     base.update(elapsed);
-    car.update(elapsed);
-    arcade.update(elapsed, car.object.position);
+    car.update(elapsed, speed);
+    speedLines.update(dt, speed);
+    for (const event of street.update(elapsed, car.object.position, speed)) {
+      onEvent?.({ ...event, kmh: Math.round(speed * 320) });
+    }
+    finish.uniforms.uSpeed.value = speed;
+    finish.uniforms.uTime.value = elapsed % 10;
     startLights(elapsed);
     updateGlow(dt);
     if (mouseOnCanvas) pick();
 
     render();
 
-    // After the first second, if frames are slow, drop the bloom and render at 1x.
+    // After the first second, if frames are slow, drop the mirror and the bloom and render at 1x.
     frames++;
     if (!qualityChecked && frames > 30) {
       measured += dt;
@@ -344,6 +417,12 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
         qualityChecked = true;
         if (measured / 90 > 1 / 40) {
           useBloom = false;
+          if (mirror) {
+            scene.remove(mirror);
+            track.asphalt.opacity = 1;
+            track.asphalt.transparent = false;
+            mirror = null;
+          }
           pixelRatio = 1;
           renderer.setPixelRatio(1);
           resize();
@@ -376,6 +455,67 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
     highlight(id) {
       linked = id;
       needsRender = true;
+    },
+  };
+}
+
+// A dark studio with neon panels: what the car's paint and the chrome reflect.
+function nightEnvironment(renderer) {
+  const env = new THREE.Scene();
+  env.background = new THREE.Color(0x020306);
+  const panel = (color, strength, position, size) => {
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(...size),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(strength), side: THREE.DoubleSide }),
+    );
+    mesh.position.set(...position);
+    mesh.lookAt(0, 0, 0);
+    env.add(mesh);
+  };
+  panel(0xfff1d6, 5, [0, 9, 0], [14, 3]);
+  panel(0x38e1ff, 4, [9, 2, 2], [1.5, 8]);
+  panel(0xff3da5, 3, [-9, 2, -2], [1.5, 7]);
+  panel(0xa78bfa, 2.5, [0, 3, -9], [10, 1.2]);
+  panel(0xf5a524, 2, [2, 1, 9], [8, 1]);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const texture = pmrem.fromScene(env, 0.02).texture;
+  pmrem.dispose();
+  return texture;
+}
+
+// Thin streaks rushing past the camera at speed.
+function makeSpeedLines(count) {
+  const group = new THREE.Group();
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xcfefff,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.02, 0.02, 4), material, count);
+  const items = [];
+  const m = new THREE.Object3D();
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = 2.5 + Math.random() * 5;
+    items.push({ x: Math.cos(a) * r, y: Math.sin(a) * r * 0.6, z: -Math.random() * 60 });
+  }
+  group.add(mesh);
+  return {
+    group,
+    update(dt, speed) {
+      material.opacity = THREE.MathUtils.smoothstep(speed, 0.35, 1) * 0.5;
+      mesh.visible = material.opacity > 0.01;
+      if (!mesh.visible) return;
+      items.forEach((it, i) => {
+        it.z += dt * 90 * speed;
+        if (it.z > 2) it.z -= 62;
+        m.position.set(it.x, it.y, it.z);
+        m.updateMatrix();
+        mesh.setMatrixAt(i, m.matrix);
+      });
+      mesh.instanceMatrix.needsUpdate = true;
     },
   };
 }

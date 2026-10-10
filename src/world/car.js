@@ -219,13 +219,45 @@ export function createCar({ envMap }) {
   shadow.position.y = 0.06;
   car.add(shadow);
 
+  // Street-racing touches: neon underglow and a nitro flame that grows with speed.
+  const underglow = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.8, 6).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({
+      map: glowTexture(),
+      color: new THREE.Color(0x38e1ff).multiplyScalar(1.3),
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+    }),
+  );
+  underglow.position.y = 0.07;
+  const flameMat = new THREE.MeshBasicMaterial({
+    map: flameTexture(),
+    color: new THREE.Color(0x7fdcff).multiplyScalar(2.6),
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false,
+    side: THREE.DoubleSide,
+  });
+  const flame = new THREE.Mesh(new THREE.ConeGeometry(0.11, 1, 16, 1, true).rotateX(-Math.PI / 2).translate(0, 0, -0.5), flameMat);
+  flame.position.set(0, 0.36, -2.5);
+  car.add(underglow, flame);
+
   return {
     object: car,
     roll(distance) {
       for (const w of wheels) w.rotation.x += distance / w.position.y;
     },
-    update(elapsed) {
+    // speed: 0 (parked) to 1 (flat out).
+    update(elapsed, speed = 0) {
       rainMat.color.setRGB(Math.sin(elapsed * 9) > 0 ? 3 : 0.3, 0.1, 0.15);
+      const boost = THREE.MathUtils.smoothstep(speed, 0.25, 0.9);
+      flame.visible = boost > 0.01;
+      flame.scale.set(1 + boost * 0.4, 1 + boost * 0.4, 0.2 + boost * (1.6 + Math.sin(elapsed * 60) * 0.25));
+      flameMat.opacity = boost;
+      underglow.material.opacity = 0.75 + Math.sin(elapsed * 2.2) * 0.1 + speed * 0.25;
     },
   };
 }
@@ -307,6 +339,35 @@ function numberTexture(text) {
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
+}
+
+function glowTexture() {
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 128;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(32, 64, 4, 32, 64, 64);
+  g.addColorStop(0, 'rgba(255,255,255,0.9)');
+  g.addColorStop(0.5, 'rgba(255,255,255,0.35)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 64, 128);
+  return new THREE.CanvasTexture(c);
+}
+
+// Bright at the nozzle (bottom of the canvas = base of the cone), gone at the tip.
+function flameTexture() {
+  const c = document.createElement('canvas');
+  c.width = 16;
+  c.height = 128;
+  const ctx = c.getContext('2d');
+  const g = ctx.createLinearGradient(0, 128, 0, 0);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 16, 128);
+  return new THREE.CanvasTexture(c);
 }
 
 function shadowTexture() {

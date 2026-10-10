@@ -1,6 +1,7 @@
 import '@fontsource-variable/space-grotesk';
 import '@fontsource-variable/jetbrains-mono';
-import '@fontsource/press-start-2p';
+import '@fontsource/chakra-petch/600.css';
+import '@fontsource/chakra-petch/700-italic.css';
 import './style.css';
 import { it as IT, nodes, skills, terminalScripts } from './content.js';
 
