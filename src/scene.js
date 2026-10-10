@@ -172,10 +172,11 @@ export function createScene({
       packets,
       glow: 0,
       orbit: {
-        radius: 3.3 + i * 0.35,
-        speed: 0.13 - i * 0.025,
+        // Same angular speed for all, so the nodes keep their spacing and never run into each other.
+        radius: [3.3, 3.4, 3.75, 3.35][i % 4],
+        speed: 0.1,
         phase: 0.6 + (i * Math.PI * 2) / nodes.length,
-        height: [0.95, -0.75, 0.25][i % 3],
+        height: [0.95, -0.75, 0.25, -0.2][i % 4],
       },
     };
   });
@@ -496,6 +497,7 @@ function holdEase(t) {
 function shapeGeometry(shape) {
   if (shape === 'octahedron') return new THREE.OctahedronGeometry(0.34, 0);
   if (shape === 'dodecahedron') return new THREE.DodecahedronGeometry(0.3, 0);
+  if (shape === 'tetrahedron') return new THREE.TetrahedronGeometry(0.38, 0);
   return new THREE.IcosahedronGeometry(0.32, 0);
 }
 

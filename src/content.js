@@ -5,6 +5,7 @@ export const nodes = [
   { id: 'wp-doctor', label: 'wp-doctor', color: 0x38e1ff, shape: 'icosahedron' },
   { id: 'case-study', label: 'case-study', color: 0xa78bfa, shape: 'octahedron' },
   { id: 'this-site', label: 'this-site', color: 0x5cf2b0, shape: 'dodecahedron' },
+  { id: 'roma-night-gp', label: 'roma-night-gp', color: 0xff5f7a, shape: 'tetrahedron' },
 ];
 
 export const skills = [
@@ -101,6 +102,13 @@ export const it = {
     'Un portfolio 3D in JavaScript semplice: Three.js e Vite, nessun framework, nessun cookie, nessun tracciamento. Costruito in modo agentico con Claude Code, dalla prima riga al deploy.',
   'p.site.b1': 'Prima il testo: la pagina si legge prima che arrivi il 3D, e anche senza WebGL',
   'p.site.b2': 'Rispetta la riduzione del movimento; abbassa la qualità sui dispositivi lenti',
+  'p.rng.tag': 'Demo 3D',
+  'p.rng.d':
+    'Il mio portfolio come un giro di una gara notturna: scorri per guidare una monoposto, guarda la squadra cambiare le gomme al box di ogni progetto e segui la gara su un HUD da videogioco. Tutto costruito nel codice, senza modelli 3D.',
+  'p.rng.b1': "Squadre ai box articolate e disegnate con l'instancing: 33 persone, una chiamata di disegno per ogni parte del corpo",
+  'p.rng.b2': 'Asfalto bagnato che riflette, bloom e qualità che si adatta ai dispositivi lenti',
+  'p.rng.play': 'Prova la demo →',
+  'p.rng.code': 'Codice sorgente',
 
   'stack.kicker': 'Di cosa mi occupo',
   'stack.title': 'Dal plugin al server',
