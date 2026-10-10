@@ -1,15 +1,11 @@
 import '@fontsource-variable/space-grotesk';
 import '@fontsource-variable/jetbrains-mono';
-import '@fontsource/chakra-petch/600.css';
-import '@fontsource/chakra-petch/700-italic.css';
 import './style.css';
 import { it as IT, nodes, skills, terminalScripts } from './content.js';
 
 const root = document.documentElement;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let scene = null;
-let hud = null;
-const SECTION_NAMES = ['hero', 'how', 'projects', 'stack', 'contact'];
 
 // ---------- language ----------
 // English is in the HTML; Italian comes from content.js.
@@ -49,7 +45,6 @@ function applyLang(value) {
   langButton.lang = lang === 'it' ? 'en' : 'it';
   langButton.setAttribute('aria-label', lang === 'it' ? 'Read in English' : 'Leggi in italiano');
   scene?.setLanguage(lang);
-  hud?.setLanguage(lang);
 }
 
 langButton.addEventListener('click', () => {
@@ -99,7 +94,6 @@ let activeIndex = -1;
 function setActive(index) {
   if (index === activeIndex) return;
   activeIndex = index;
-  hud?.section(SECTION_NAMES[index]);
   const id = sections[index]?.id;
   for (const a of navLinks) {
     if (a.hash === `#${id}`) a.setAttribute('aria-current', 'true');
@@ -116,7 +110,6 @@ function onScroll() {
     const p = progress();
     setActive(Math.round(p));
     scene?.setProgress(p);
-    if (Math.round(p) === 2) scene?.setActiveProject(cardInView());
   });
 }
 
@@ -128,7 +121,7 @@ new ResizeObserver(() => {
   onScroll();
 }).observe(document.querySelector('main'));
 
-// ---------- project cards <-> 3D garages ----------
+// ---------- project cards <-> 3D nodes ----------
 const cards = new Map([...document.querySelectorAll('[data-node]')].map((c) => [c.dataset.node, c]));
 for (const [id, card] of cards) {
   card.addEventListener('pointerenter', () => scene?.highlight(id));
@@ -137,32 +130,13 @@ for (const [id, card] of cards) {
   card.addEventListener('focusout', () => scene?.highlight(null));
 }
 
-// The project card closest to the middle of the screen: the car pits at its garage.
-function cardInView() {
-  let best = null;
-  let bestDistance = Infinity;
-  for (const [id, card] of cards) {
-    const r = card.getBoundingClientRect();
-    const distance = Math.abs(r.top + r.height / 2 - window.innerHeight / 2);
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      best = id;
-    }
-  }
-  return best;
-}
-
 function onNodeHover(id) {
   for (const [cardId, card] of cards) card.classList.toggle('is-linked', cardId === id);
 }
 
-// A click on a garage opens its project card.
 function onNodeClick(id) {
   const card = cards.get(id);
-  if (!card) {
-    document.getElementById(id)?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth' });
-    return;
-  }
+  if (!card) return;
   card.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' });
   card.focus({ preventScroll: true });
   card.classList.remove('is-pulsed');
@@ -171,8 +145,8 @@ function onNodeClick(id) {
 }
 
 // ---------- the 3D scene, loaded after the text ----------
-Promise.all([import('./scene.js'), import('./hud.js')])
-  .then(([{ createScene }, { createHud }]) => {
+import('./scene.js')
+  .then(({ createScene }) => {
     scene = createScene({
       canvas: document.getElementById('scene'),
       labelLayer: document.getElementById('labels'),
@@ -183,11 +157,8 @@ Promise.all([import('./scene.js'), import('./hud.js')])
       reducedMotion,
       onNodeHover,
       onNodeClick,
-      onEvent: (e) => hud?.event(e),
-      onFrame: (f) => hud?.frame(f),
     });
     root.classList.add(scene ? 'webgl' : 'no-webgl');
-    if (scene && !reducedMotion) hud = createHud({ root: document.getElementById('hud'), map: scene.map(), lang });
     onScroll();
   })
   .catch((error) => {

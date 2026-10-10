@@ -1,5 +1,4 @@
 // Everything the 3D scene shows, plus the Italian translation of the page.
-// The scene is a night circuit on an old military airfield: projects are hangars, skills are plates in the gym.
 // The English text lives in index.html, so the page reads fine before (and without) JavaScript.
 
 export const nodes = [
@@ -8,20 +7,9 @@ export const nodes = [
   { id: 'this-site', label: 'this-site', color: 0x5cf2b0, shape: 'dodecahedron' },
 ];
 
-// The plates on the rack in the training area: one per tool, heavier = used more.
 export const skills = [
-  { name: 'Claude Code', kg: 25 },
-  { name: 'PHP', kg: 20 },
-  { name: 'JavaScript', kg: 20 },
-  { name: 'WordPress', kg: 25 },
-  { name: 'Node.js', kg: 15 },
-  { name: 'Moodle', kg: 15 },
-  { name: 'Cloudflare', kg: 20 },
-  { name: 'MySQL', kg: 10 },
-  { name: 'Redis', kg: 10 },
-  { name: 'Linux', kg: 10 },
-  { name: 'Git', kg: 5 },
-  { name: 'Python', kg: 5 },
+  'Claude Code', 'MCP', 'Claude API', 'WordPress', 'PHP', 'JavaScript', 'Node.js', 'Three.js',
+  'Moodle', 'MySQL', 'Redis', 'Cloudflare', 'GA4 · GTM', 'Linux', 'Git', 'Python',
 ];
 
 // The session typed on the 3D terminal. Same story as the case study.

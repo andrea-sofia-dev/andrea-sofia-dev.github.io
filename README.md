@@ -1,38 +1,30 @@
 # andrea-sofia-dev.github.io
 
-My portfolio as one lap of a night race. Scrolling drives an open-wheel car round a city circuit: it waits on the
-grid for the lights to go out, passes a checkpoint for each section, pits at the garage of the project you are
-reading, and crosses the finish line at the end. Racing, video games and the gym are my hobbies, so they are all in.
+My portfolio as a small 3D scene: a terminal where an AI agent ships a change, my projects orbiting around it,
+and the tools I use as a constellation. Scroll, and the camera flies from one to the next.
 
 **Live: [andrea-sofia-dev.github.io](https://andrea-sofia-dev.github.io)**
 
-![The home page: name and title on the left; on the right the car on the grid under a light gate, with the game HUD](public/og.png)
+![The home page: name and title on the left, a glowing 3D terminal with three orbiting project nodes on the right](public/og.png)
 
 ## What's in it
 
-- **Scroll is the throttle.** Each section is a stop on the lap. Between stops a chase camera follows the car;
-  scroll fast and you get the nitro flame, speed lines, a wider field of view and a touch of chromatic aberration.
-- **The sections live on the circuit.** "How I work" plays on the pit wall screen (a terminal typing an agent
-  session); each project has a team garage; the skills are plates on the rack of the paddock gym.
-- **Pit stops.** In the projects section the car pits at the garage of the card in the middle of the screen, and
-  the crew does a stop: jacks up, wheels off and on, lollipop up.
-- **Game HUD.** Radar minimap and event feed, XP and levels, lap clock, speedometer with gear and nitro, toasts
-  for lights out, checkpoints, the speed trap and pit stops, race results at the finish.
-- **Night look.** Wet asphalt that reflects the car and the neon (a planar mirror under a see-through road),
-  bloom, neon reflections on the paint, a skyline and a grandstand full of phone flashes.
-- **Everything is built in code.** The car, the garages, the gym: no 3D models, no textures from outside, no real
-  team or brand.
+- **Three.js, no framework.** About 10 KB of JavaScript for the page itself; Three.js (~150 KB gzipped) loads
+  after the text, in its own chunk.
+- **The terminal is a canvas texture.** The session is typed one character at a time and the texture is redrawn
+  only when something changes.
+- **Scroll drives the camera.** Each section has a shot; the camera holds while the section is centred and flies
+  between shots. The mouse adds a little parallax.
+- **Cards and 3D are linked.** Hover a project card and its node lights up; click a node and its card scrolls into
+  view. Labels fade when a node passes behind the monitor.
 - **Two languages**, English and Italian, picked from the browser and switchable.
 
 ## Accessibility and performance
 
-- Text first: all the content is plain HTML, readable before the 3D loads and without WebGL at all. The HUD is
-  decoration and is hidden from screen readers; it sits under the text panels, so it never covers what you read.
-- `prefers-reduced-motion`: no driving, no camera flights, no HUD. The scene cuts between still shots and renders
-  only when something changes.
-- About 11 KB of JavaScript for the page; Three.js and the scene (~170 KB gzipped) load after the text.
-- Phones skip the wet-asphalt mirror. If the first frames are slow, the mirror and the bloom are turned off and
-  the resolution drops to 1×.
+- Text first: all the content is plain HTML, readable before the 3D loads and without WebGL at all.
+- `prefers-reduced-motion`: no camera flights and no idle animation. The scene cuts between shots and renders only
+  when something changes.
+- If the first frames are slow, the bloom is turned off and the resolution drops to 1×.
 - Self-hosted fonts. No cookies, no analytics, no requests to third parties.
 
 ## Run it
@@ -49,27 +41,18 @@ Every push to `main` is deployed to GitHub Pages by GitHub Actions.
 ## How it was built
 
 Agentically, with Claude Code. I set the goal and the constraints (text first, no trackers, works on a phone) and
-steered the look: the first version was a space scene, then a military airfield, then this night race with the car,
-the pit stops and the HUD I asked for. The agent wrote the code and checked every round in headless Chrome at
-desktop and phone sizes: a screenshot of every section, console errors, horizontal overflow. Then it fixed what it
-found.
+reviewed each step. The agent wrote the code, then checked it in headless Chrome at desktop and phone sizes:
+a screenshot of every section, console errors, horizontal overflow. Then it fixed what it found.
 
 ## Structure
 
 ```
-index.html            page content (English) and meta tags
-src/main.js           language switch, scroll → lap position, card ↔ garage links
-src/scene.js          renderer, camera shots, chase camera, post-processing, race events
-src/hud.js            the game HUD
-src/terminal.js       the typed terminal on the pit wall screen (canvas texture)
-src/content.js        projects, skills, terminal script, Italian text
-src/world/track.js    the circuit: spline, asphalt, kerbs, start line
-src/world/car.js      the car, lofted through oval cross-sections
-src/world/base.js     start gantry, pit wall screen, garages, grandstand, floodlights, skyline
-src/world/pit.js      pit lane, crews and the pit stop
-src/world/street.js   light-gate checkpoints, route arrows, speed trap
-src/world/gym.js      the paddock gym
-src/style.css         layout, theme and HUD
+index.html        page content (English) and meta tags
+src/main.js       language switch, scroll → camera, card ↔ node links
+src/scene.js      Three.js scene: camera shots, orbits, bloom, labels
+src/terminal.js   the typed terminal (canvas texture)
+src/content.js    projects, skills, terminal script, Italian text
+src/style.css     layout and theme
 ```
 
 ## License
