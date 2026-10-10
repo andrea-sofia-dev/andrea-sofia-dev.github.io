@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/fetch-projects.js",
     "build": "vite build",
+    "projects": "node scripts/fetch-projects.js",
     "preview": "vite preview",
     "check": "node scripts/check-i18n.js"
   },

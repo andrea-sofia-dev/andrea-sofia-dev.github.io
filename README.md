@@ -5,7 +5,7 @@ and the tools I use as a constellation. Scroll, and the camera flies from one to
 
 **Live: [andrea-sofia-dev.github.io](https://andrea-sofia-dev.github.io)**
 
-![The home page: name and title on the left, a glowing 3D terminal with three orbiting project nodes on the right](public/og.png)
+![The home page: name and title on the left, a glowing 3D terminal with orbiting project nodes on the right](public/og.png)
 
 ## What's in it
 
@@ -18,6 +18,24 @@ and the tools I use as a constellation. Scroll, and the camera flies from one to
 - **Cards and 3D are linked.** Hover a project card and its node lights up; click a node and its card scrolls into
   view. Labels fade when a node passes behind the monitor.
 - **Two languages**, English and Italian, picked from the browser and switchable.
+- **The project list keeps itself up to date.** Featured projects are hand-written cards. Any other public
+  repository of mine tagged with the `portfolio` topic shows up under "More projects" on its own (see below).
+
+## More projects, automatically
+
+1. On GitHub, add the topic `portfolio` to a repository (the gear next to "About" → Topics). Its description, main
+   language, stars and website (if it isn't on github.com) are what the card shows.
+2. That's it. The site is rebuilt every day at 05:23 UTC, on every push, and whenever you click "Run workflow" in the
+   Actions tab.
+
+How it works: before each build, [`scripts/fetch-projects.js`](scripts/fetch-projects.js) reads my repositories from
+the GitHub API and saves the tagged ones to `src/generated/projects.json`; a small Vite plugin,
+[`scripts/more-projects.js`](scripts/more-projects.js), writes them into the HTML. The list is part of the page, so it
+reads without JavaScript and visitors' browsers never call GitHub. If the API can't be reached, the last saved list is
+kept and the build still succeeds. With nothing tagged, the section isn't shown at all.
+
+Good to know: GitHub pauses scheduled workflows in repositories with no activity for 60 days. If the list stops
+updating, open the Actions tab and re-enable the workflow (or push anything).
 
 ## Accessibility and performance
 
@@ -35,8 +53,9 @@ cd andrea-sofia-dev.github.io
 npm install && npm run dev
 ```
 
-`npm run build` writes the site to `dist/`. `npm run check` fails if a text has no Italian translation.
-Every push to `main` is deployed to GitHub Pages by GitHub Actions.
+`npm run build` refreshes the project list and writes the site to `dist/`. `npm run projects` only refreshes the
+list. `npm run check` fails if a text has no Italian translation. GitHub Actions deploys to GitHub Pages on every push
+to `main`, every day, and on demand.
 
 ## How it was built
 
@@ -53,6 +72,8 @@ src/scene.js      Three.js scene: camera shots, orbits, bloom, labels
 src/terminal.js   the typed terminal (canvas texture)
 src/content.js    projects, skills, terminal script, Italian text
 src/style.css     layout and theme
+src/generated/    projects.json, the tagged repositories (written by the build)
+scripts/          fetch-projects.js, more-projects.js (Vite plugin), check-i18n.js
 ```
 
 ## License

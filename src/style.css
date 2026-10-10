@@ -567,6 +567,93 @@ p {
   text-underline-offset: 4px;
 }
 
+/* "More projects": repositories tagged on GitHub, filled in at build time. */
+.more {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.more-title {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.more-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.more-item {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(5, 8, 14, 0.55);
+  transition: border-color 0.2s;
+}
+
+.more-item:hover,
+.more-item:focus-within {
+  border-color: var(--line-strong);
+}
+
+.more-item h4 {
+  margin: 0 0 6px;
+  font: 600 14px var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.more-item h4 a {
+  color: var(--cyan);
+  text-decoration: none;
+}
+
+.more-item h4 a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.more-item p {
+  margin: 0;
+  color: var(--soft);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.more-item .more-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 10px;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.more-meta a {
+  color: var(--mint);
+  text-decoration: none;
+}
+
+.more-meta a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.more-note {
+  margin: 12px 0 0;
+  color: var(--faint);
+  font-size: 12px;
+}
+
 .stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

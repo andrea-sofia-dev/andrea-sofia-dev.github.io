@@ -3,6 +3,11 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  # Every day, so a repository tagged with the "portfolio" topic shows up without touching this repo.
+  # (GitHub pauses scheduled runs after 60 days with no activity here: re-enable them in the Actions tab.)
+  schedule:
+    - cron: '23 5 * * *'
+  # "Run workflow" in the Actions tab updates the list right away.
   workflow_dispatch:
 
 permissions:
@@ -25,7 +30,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      # prebuild fetches the tagged repositories; the token only raises GitHub's rate limit.
       - run: npm run build
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist

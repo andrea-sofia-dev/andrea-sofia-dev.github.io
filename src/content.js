@@ -109,6 +109,9 @@ export const it = {
   'p.rng.b2': 'Asfalto bagnato che riflette, bloom e qualità che si adatta ai dispositivi lenti',
   'p.rng.play': 'Prova la demo →',
   'p.rng.code': 'Codice sorgente',
+  'more.title': 'Altri progetti',
+  'more.note': 'Elenco aggiornato in automatico dal mio GitHub.',
+  'more.demo': 'Demo online',
 
   'stack.kicker': 'Di cosa mi occupo',
   'stack.title': 'Dal plugin al server',

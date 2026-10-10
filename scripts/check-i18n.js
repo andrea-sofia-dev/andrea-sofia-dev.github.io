@@ -5,7 +5,8 @@ import { it } from '../src/content.js';
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const used = new Set([...html.matchAll(/data-i18n="([^"]+)"/g)].map((m) => m[1]));
 const defined = new Set(Object.keys(it));
-const runtimeOnly = new Set(['meta.title', 'copied']); // used from main.js
+// Used from main.js, or only in HTML generated at build time (scripts/more-projects.js).
+const runtimeOnly = new Set(['meta.title', 'copied', 'more.demo']);
 
 const missing = [...used].filter((k) => !defined.has(k));
 const unused = [...defined].filter((k) => !used.has(k) && !runtimeOnly.has(k));
