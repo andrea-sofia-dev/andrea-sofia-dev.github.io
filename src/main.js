@@ -134,9 +134,13 @@ function onNodeHover(id) {
   for (const [cardId, card] of cards) card.classList.toggle('is-linked', cardId === id);
 }
 
+// A click on a hangar opens its project card; the other objectives lead to their section.
 function onNodeClick(id) {
   const card = cards.get(id);
-  if (!card) return;
+  if (!card) {
+    document.getElementById(id)?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth' });
+    return;
+  }
   card.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' });
   card.focus({ preventScroll: true });
   card.classList.remove('is-pulsed');

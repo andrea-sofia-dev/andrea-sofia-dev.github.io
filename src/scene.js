@@ -1,38 +1,32 @@
 import * as THREE from 'three';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Terminal } from './terminal.js';
+import { Track } from './world/track.js';
+import { createCar } from './world/car.js';
+import { buildBase, lightPool } from './world/base.js';
+import { buildGym } from './world/gym.js';
 
-const BG = 0x05070c;
+const BG = 0x04060b;
 const SECTIONS = ['hero', 'how', 'projects', 'stack', 'contact'];
-const SKILLS_CENTER = new THREE.Vector3(-12, 1, 2.5);
+// Where the car stops for each section, as a fraction of the lap. The last one is just past the finish line.
+const ANCHORS = [-0.012, 0.1, 0.47, 0.74, 1.015];
+// Where things stand around the circuit.
+const SPOTS = {
+  screen: 0.112,
+  tower: 0.05,
+  radar: 0.165,
+  hangars: [0.43, 0.47, 0.51],
+  gym: 0.74,
+  floodlights: [0.03, 0.22, 0.3, 0.36, 0.6, 0.66, 0.84, 0.92],
+};
+const UP = new THREE.Vector3(0, 1, 0);
 
-// One camera shot per page section, in order.
-const SHOTS = [
-  { pos: new THREE.Vector3(0, 1.0, 10.5), look: new THREE.Vector3(0, 0.2, 0) },
-  { pos: new THREE.Vector3(0.4, 0.25, 6.3), look: new THREE.Vector3(0, 0.05, 0) },
-  { pos: new THREE.Vector3(2.8, 4.6, 11), look: new THREE.Vector3(0.3, -0.2, 0) },
-  { pos: SKILLS_CENTER.clone().add(new THREE.Vector3(2.4, 0.8, 5.6)), look: SKILLS_CENTER.clone() },
-  { pos: new THREE.Vector3(0, 7.5, 15.5), look: new THREE.Vector3(0, -0.6, 0) },
-];
-
-const LINK_SEGMENTS = 32;
-
-export function createScene({
-  canvas,
-  labelLayer,
-  nodes,
-  skills,
-  scripts,
-  lang,
-  reducedMotion,
-  onNodeHover,
-  onNodeClick,
-}) {
+export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, reducedMotion, onNodeHover, onNodeClick }) {
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -44,214 +38,81 @@ export function createScene({
   let pixelRatio = Math.min(window.devicePixelRatio || 1, small ? 1.5 : 2);
   renderer.setPixelRatio(pixelRatio);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.0;
+  renderer.debug.checkShaderErrors = import.meta.env.DEV; // skip the slow (and noisy) shader log in production
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(BG);
-  scene.fog = new THREE.FogExp2(BG, 0.042);
+  scene.fog = new THREE.FogExp2(BG, 0.014);
 
-  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 120);
-  camera.position.copy(SHOTS[0].pos);
-  const lookAt = SHOTS[0].look.clone();
-  camera.lookAt(lookAt);
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 600);
 
-  // ---------- lights ----------
-  scene.add(new THREE.HemisphereLight(0x5a6ea8, BG, 0.9));
-  const key = new THREE.PointLight(0x38e1ff, 26, 0, 2);
-  key.position.set(-3.2, 2.2, 3);
-  const rim = new THREE.PointLight(0xa78bfa, 22, 0, 2);
-  rim.position.set(3.6, -0.8, 2.4);
-  const sun = new THREE.DirectionalLight(0xffffff, 0.5);
-  sun.position.set(2, 4, 6);
-  scene.add(key, rim, sun);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  pmrem.dispose();
 
-  // ---------- the terminal ----------
+  // ---------- night lighting ----------
+  scene.add(new THREE.HemisphereLight(0x3b4a70, 0x050608, 0.6));
+  const moon = new THREE.DirectionalLight(0x8fa8ff, 0.35);
+  moon.position.set(-40, 60, 30);
+  scene.add(moon);
+
+  // ---------- the world ----------
+  const track = new Track();
+  scene.add(track.group);
+
   const terminal = new Terminal({ scripts, lang, animated: !reducedMotion });
-  const monitor = new THREE.Group();
-  scene.add(monitor);
+  const base = buildBase({ track, nodes, screenTexture: terminal.texture, spots: SPOTS });
+  scene.add(base.group);
 
-  const body = new THREE.Mesh(
-    new RoundedBoxGeometry(3.42, 2.17, 0.16, 4, 0.07),
-    new THREE.MeshStandardMaterial({ color: 0x0d1320, metalness: 0.75, roughness: 0.32 }),
-  );
-  const screen = new THREE.Mesh(
-    new THREE.PlaneGeometry(3.2, 1.95),
-    new THREE.MeshBasicMaterial({ map: terminal.texture, toneMapped: false }),
-  );
-  screen.position.z = 0.082;
-  const frame = new THREE.LineLoop(
-    roundedRect(3.5, 2.25, 0.11),
-    new THREE.LineBasicMaterial({ color: new THREE.Color(0x38e1ff).multiplyScalar(1.8), toneMapped: false }),
-  );
-  const halo = new THREE.Mesh(
-    new THREE.PlaneGeometry(10, 6.5),
-    new THREE.MeshBasicMaterial({
-      map: haloTexture(),
-      transparent: true,
-      opacity: 0.55,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      fog: false,
-    }),
-  );
-  halo.position.z = -0.8;
-  monitor.add(halo, body, screen, frame);
+  const gym = buildGym({ skills, signText: 'TRAINING AREA' });
+  track.beside(SPOTS.gym, 17, gym.group.position);
+  faceTrack(track, gym.group, SPOTS.gym);
+  scene.add(gym.group);
 
-  // ---------- projects orbiting the terminal ----------
-  const hitTargets = [];
-  const packetGeometry = new THREE.SphereGeometry(0.035, 8, 6);
-  const curve = new THREE.QuadraticBezierCurve3();
+  // Pools of light where the action is.
   const tmp = new THREE.Vector3();
+  lightPool(track.beside(SPOTS.screen, 9, tmp), 9, 0x9fe8ff, 0.14);
+  for (const u of SPOTS.hangars) lightPool(track.beside(u, 13, tmp), 7, 0xcfdcff, 0.12);
+  lightPool(track.beside(SPOTS.gym, 16, tmp), 10, 0xffd9a8, 0.14);
+  lightPool(track.beside(0, 0, tmp), 8, 0xcfdcff, 0.12);
 
-  const orbiting = nodes.map((node, i) => {
-    const color = new THREE.Color(node.color);
-    const group = new THREE.Group();
+  const car = createCar({ envMap });
+  scene.add(car.object);
 
-    const core = new THREE.Mesh(
-      shapeGeometry(node.shape),
-      new THREE.MeshStandardMaterial({
-        color,
-        emissive: color,
-        emissiveIntensity: 0.9,
-        roughness: 0.35,
-        metalness: 0.2,
-        flatShading: true,
-      }),
-    );
-    const shell = new THREE.LineSegments(
-      new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(0.52, 1)),
-      new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.45 }),
-    );
-    const hit = new THREE.Mesh(new THREE.SphereGeometry(0.7, 12, 8), new THREE.MeshBasicMaterial());
-    hit.visible = false; // still hit by the raycaster
-    hit.userData.id = node.id;
-    hitTargets.push(hit);
-
+  // ---------- objective markers (A to E) ----------
+  const objectives = [];
+  function marker(letter, name, color, parent, height, link) {
     const el = document.createElement('div');
-    el.className = 'node-label';
-    el.style.setProperty('--c', `#${color.getHexString()}`);
-    const tag = document.createElement('span');
-    tag.textContent = node.label;
-    el.append(tag);
-    tag.addEventListener('click', () => onNodeClick?.(node.id));
-    tag.addEventListener('pointerenter', () => setHovered(node.id));
-    tag.addEventListener('pointerleave', () => setHovered(null));
-    const label = new CSS2DObject(el);
-    label.position.set(0, 0.78, 0);
-    label.userData.tag = tag;
-
-    group.add(core, shell, hit, label);
-    scene.add(group);
-
-    const link = new THREE.Line(
-      new THREE.BufferGeometry().setAttribute(
-        'position',
-        new THREE.BufferAttribute(new Float32Array((LINK_SEGMENTS + 1) * 3), 3),
-      ),
-      new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.3 }),
-    );
-    link.frustumCulled = false;
-    scene.add(link);
-
-    const packets = [0, 0.5].map((offset) => {
-      const mesh = new THREE.Mesh(
-        packetGeometry,
-        new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(2.2), toneMapped: false }),
-      );
-      scene.add(mesh);
-      return { mesh, offset };
-    });
-
-    return {
-      id: node.id,
-      group,
-      label,
-      core,
-      shell,
-      link,
-      packets,
-      glow: 0,
-      orbit: {
-        radius: 3.3 + i * 0.35,
-        speed: 0.13 - i * 0.025,
-        phase: 0.6 + (i * Math.PI * 2) / nodes.length,
-        height: [0.95, -0.75, 0.25][i % 3],
-      },
-    };
+    el.className = 'marker';
+    el.style.setProperty('--c', color);
+    el.innerHTML = '<span class="marker-tag"></span><span class="marker-text"><b></b><i></i></span>';
+    el.querySelector('.marker-tag').textContent = letter;
+    el.querySelector('b').textContent = name;
+    const dist = el.querySelector('i');
+    el.addEventListener('click', () => onNodeClick?.(link));
+    el.addEventListener('pointerenter', () => setHovered(link));
+    el.addEventListener('pointerleave', () => setHovered(null));
+    const object = new CSS2DObject(el);
+    object.position.set(0, height, 0);
+    parent.add(object);
+    objectives.push({ el, dist, object, link, metres: -1, world: new THREE.Vector3() });
+  }
+  marker('A', 'workflow', '#38e1ff', base.screen, 12.8, 'how');
+  base.hangars.forEach((h, i) => {
+    const color = `#${new THREE.Color(nodes[i].color).getHexString()}`;
+    marker(String.fromCharCode(66 + i), nodes[i].label, color, h.group, h.markerHeight, h.id);
   });
-
-  // ---------- skills constellation ----------
-  const constellation = new THREE.Group();
-  constellation.position.copy(SKILLS_CENTER);
-  scene.add(constellation);
-
-  const points = fibonacciSphere(skills.length, 1.75);
-  const palette = [0x38e1ff, 0xa78bfa, 0x5cf2b0];
-  const starGeometry = new THREE.OctahedronGeometry(0.075, 0);
-  const skillLabels = skills.map((name, i) => {
-    const star = new THREE.Mesh(
-      starGeometry,
-      new THREE.MeshBasicMaterial({
-        color: new THREE.Color(palette[i % palette.length]).multiplyScalar(1.6),
-        toneMapped: false,
-      }),
-    );
-    star.position.copy(points[i]);
-    const el = document.createElement('div');
-    el.className = 'skill-label';
-    const text = document.createElement('span');
-    text.textContent = name;
-    el.append(text);
-    const label = new CSS2DObject(el);
-    label.position.copy(points[i]).multiplyScalar(1.14);
-    constellation.add(star, label);
-    return { label, text };
-  });
-
-  const segments = [];
-  const joined = new Set();
-  points.forEach((p, i) => {
-    points
-      .map((q, j) => [j, p.distanceTo(q)])
-      .filter(([j]) => j !== i)
-      .sort((a, b) => a[1] - b[1])
-      .slice(0, 2)
-      .forEach(([j]) => {
-        const id = i < j ? `${i}-${j}` : `${j}-${i}`;
-        if (joined.has(id)) return;
-        joined.add(id);
-        segments.push(p, points[j]);
-      });
-  });
-  constellation.add(
-    new THREE.LineSegments(
-      new THREE.BufferGeometry().setFromPoints(segments),
-      new THREE.LineBasicMaterial({ color: 0x7088d0, transparent: true, opacity: 0.4 }),
-    ),
-    new THREE.Mesh(
-      new THREE.IcosahedronGeometry(1.75, 2),
-      new THREE.MeshBasicMaterial({ color: 0x2a3a5c, wireframe: true, transparent: true, opacity: 0.16 }),
-    ),
-  );
-
-  // ---------- floor grid and floating dust ----------
-  const grid = new THREE.GridHelper(90, 90, 0x1f6f8b, 0x15233a);
-  grid.position.y = -2.6;
-  grid.material.transparent = true;
-  grid.material.opacity = 0.55;
-  scene.add(grid);
-
-  const dust = makeDust(small ? 700 : 1800);
-  scene.add(dust);
+  marker('E', 'training', '#f5a524', gym.group, 8, 'stack');
+  // The objective each section is about (CoD-style "next objective").
+  const CURRENT = [['how'], ['how'], nodes.map((n) => n.id), ['stack'], []];
 
   // ---------- rendering ----------
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.68, 0.45, 0.3);
-  composer.addPass(bloom);
+  composer.addPass(new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.45, 0.6));
   composer.addPass(new OutputPass());
   let useBloom = true;
-
   const labels = new CSS2DRenderer({ element: labelLayer });
 
   let distanceScale = 1;
@@ -264,8 +125,8 @@ export function createScene({
     labels.setSize(w, h);
     camera.aspect = w / h;
     const portrait = camera.aspect < 1;
-    camera.fov = portrait ? 50 : 42;
-    distanceScale = portrait ? 1 + (1 - camera.aspect) * 1.3 : 1;
+    camera.fov = portrait ? 55 : 42;
+    distanceScale = portrait ? 1 + (1 - camera.aspect) * 0.9 : 1;
     // Wide screens: the text panel ends ~580 px from the left, so the scene centres in the space after it.
     // Narrow screens: text at the bottom, so the scene moves up.
     if (w >= 900) camera.setViewOffset(w, h, -(Math.min(w * 0.05, 72) + 580) / 2, 0, w, h);
@@ -274,18 +135,70 @@ export function createScene({
     needsRender = true;
   }
 
+  // ---------- camera shots ----------
+  const P = new THREE.Vector3();
+  const F = new THREE.Vector3();
+  const O = new THREE.Vector3();
+  function frameAt(u) {
+    track.at(u, P, F);
+    track.outward(u, O);
+  }
+  base.group.updateMatrixWorld(true);
+  gym.group.updateMatrixWorld(true);
+  const screenCentre = base.screen.localToWorld(new THREE.Vector3(0, 7.3, 0));
+  const hangarMid = base.hangars[1].group.position.clone();
+  const rackCentre = gym.group.localToWorld(new THREE.Vector3(0, 2.9, -3));
+
+  // Each shot writes a camera position and a point to look at.
+  const SHOTS = [
+    (pos, look) => {
+      // On the grid, behind the car, looking up at the start lights.
+      frameAt(ANCHORS[0]);
+      pos.copy(P).addScaledVector(F, -12).addScaledVector(O, 4.5).addScaledVector(UP, 3.4);
+      look.copy(P).addScaledVector(F, 5).addScaledVector(UP, 2.6);
+    },
+    (pos, look) => {
+      // The big screen with the agent session, the car parked in front.
+      frameAt(ANCHORS[1]);
+      pos.copy(P).addScaledVector(O, -11).addScaledVector(F, -12).addScaledVector(UP, 5.5);
+      look.copy(screenCentre).lerp(P, 0.3);
+    },
+    (pos, look) => {
+      // The three hangars, seen from the infield.
+      frameAt(ANCHORS[2]);
+      pos.copy(P).addScaledVector(O, -15).addScaledVector(F, -2).addScaledVector(UP, 8);
+      look.copy(hangarMid).addScaledVector(UP, 2.5).addScaledVector(O, -3);
+    },
+    (pos, look) => {
+      // The training area, close enough to read the plates.
+      frameAt(ANCHORS[3]);
+      pos.copy(rackCentre).addScaledVector(O, -15).addScaledVector(F, -5).addScaledVector(UP, 1.6);
+      look.copy(rackCentre).addScaledVector(O, -2);
+    },
+    (pos, look) => {
+      // Mission complete: the whole airfield from above.
+      pos.copy(track.centre).add(tmp.set(8, 96, 78));
+      look.copy(track.centre).add(tmp.set(4, 0, -6));
+    },
+  ];
+
+  function chase(u, pos, look) {
+    frameAt(u);
+    pos.copy(car.object.position).addScaledVector(F, -10.5).addScaledVector(UP, 3.8).addScaledVector(O, 1.2);
+    look.copy(car.object.position).addScaledVector(F, 9).addScaledVector(UP, 0.9);
+  }
+
   // ---------- interaction ----------
-  let progress = 0; // scroll position as a float section index
-  let hovered = null; // node under the mouse
-  let linked = null; // node whose card is hovered or focused
+  let progress = 0;
+  let hovered = null;
+  let linked = null;
   let needsRender = true;
   const pointer = new THREE.Vector2();
   const parallax = new THREE.Vector2();
   const parallaxTarget = new THREE.Vector2();
   let mouseOnCanvas = false;
   const raycaster = new THREE.Raycaster();
-  const occluder = new THREE.Raycaster();
-  const toNode = new THREE.Vector3();
+  const hitTargets = base.hangars.map((h) => h.hit);
 
   function setHovered(id) {
     if (hovered === id) return;
@@ -328,79 +241,83 @@ export function createScene({
   }
 
   // ---------- animation ----------
+  const timer = new THREE.Timer();
+  timer.connect(document);
+  let elapsed = 0;
+  let carU = ANCHORS[0];
+  const glow = new Map(base.hangars.map((h) => [h.id, 0]));
+  const shotPos = new THREE.Vector3();
+  const shotLook = new THREE.Vector3();
+  const chasePos = new THREE.Vector3();
+  const chaseLook = new THREE.Vector3();
   const desiredPos = new THREE.Vector3();
   const desiredLook = new THREE.Vector3();
-  const toCamera = new THREE.Vector3();
-  const starWorld = new THREE.Vector3();
-  const timer = new THREE.Timer();
-  timer.connect(document); // no time jump after the tab was hidden
-  let elapsed = 0;
+  const lookAt = new THREE.Vector3();
+  const carDir = new THREE.Vector3();
   let frames = 0;
   let measured = 0;
   // ?hq keeps full quality (used to capture the preview image on a slow headless GPU).
   let qualityChecked = new URLSearchParams(location.search).has('hq');
+  let lastSection = -1;
 
-  function shotAt(p, outPos, outLook) {
+  function targetU(p) {
+    const i = Math.min(Math.floor(p), ANCHORS.length - 1);
+    const j = Math.min(i + 1, ANCHORS.length - 1);
+    return THREE.MathUtils.lerp(ANCHORS[i], ANCHORS[j], holdEase(p - i));
+  }
+
+  function placeCar(u) {
+    track.at(u, car.object.position, carDir);
+    car.object.lookAt(tmp.copy(car.object.position).add(carDir));
+  }
+
+  // Camera: the section's shot while the section is centred, a chase camera while driving between them.
+  function cameraFor(p, pos, look) {
     const i = Math.min(Math.floor(p), SHOTS.length - 1);
-    const j = Math.min(i + 1, SHOTS.length - 1);
-    const t = holdEase(p - i);
-    outLook.lerpVectors(SHOTS[i].look, SHOTS[j].look, t);
-    outPos.lerpVectors(SHOTS[i].pos, SHOTS[j].pos, t);
+    const t = p - i;
+    const last = i === SHOTS.length - 1;
+    const driving = last ? 0 : smooth(0.1, 0.3, t) * (1 - smooth(0.7, 0.9, t));
+    SHOTS[t < 0.5 || last ? i : i + 1](shotPos, shotLook);
+    if (driving > 0) {
+      chase(carU, chasePos, chaseLook);
+      shotPos.lerp(chasePos, driving);
+      shotLook.lerp(chaseLook, driving);
+    }
     // On portrait screens, step back so the scene still fits.
-    outPos.sub(outLook).multiplyScalar(distanceScale).add(outLook);
+    pos.copy(shotPos).sub(shotLook).multiplyScalar(distanceScale).add(shotLook);
+    look.copy(shotLook);
+    return driving;
   }
 
-  function placeNodes(dt) {
-    for (const o of orbiting) {
-      const a = o.orbit.phase + elapsed * o.orbit.speed;
-      o.group.position.set(
-        Math.cos(a) * o.orbit.radius * 0.85,
-        o.orbit.height + Math.sin(elapsed * 0.8 + o.orbit.phase) * 0.15,
-        Math.sin(a) * o.orbit.radius * 0.8,
-      );
-      o.core.rotation.set(elapsed * 0.4, elapsed * 0.6, 0);
-      o.shell.rotation.set(-elapsed * 0.2, -elapsed * 0.3, 0);
-
-      // Fade the label while the node is behind the monitor.
-      toNode.copy(o.group.position).sub(camera.position);
-      occluder.far = toNode.length();
-      occluder.set(camera.position, toNode.normalize());
-      const hidden = occluder.intersectObject(body, false).length > 0;
-      if (hidden !== o.hidden) {
-        o.hidden = hidden;
-        o.label.userData.tag.style.opacity = hidden ? '0.15' : '';
+  function updateMarkers() {
+    const section = Math.round(progress);
+    for (const o of objectives) {
+      o.object.getWorldPosition(o.world);
+      const metres = Math.round(o.world.distanceTo(car.object.position));
+      if (metres !== o.metres) {
+        o.metres = metres;
+        o.dist.textContent = `${metres} m`;
       }
-
-      const target = hovered === o.id || linked === o.id ? 1 : 0;
-      o.glow = reducedMotion ? target : THREE.MathUtils.damp(o.glow, target, 8, dt);
-      o.group.scale.setScalar(1 + o.glow * 0.35);
-      o.core.material.emissiveIntensity = 0.9 + o.glow * 1.8;
-      o.shell.material.opacity = 0.45 + o.glow * 0.45;
-      o.link.material.opacity = 0.3 + o.glow * 0.5;
-
-      // Curved link from the terminal to the node, with two packets travelling along it.
-      curve.v0.set(0, monitor.position.y, -0.1);
-      curve.v2.copy(o.group.position);
-      curve.v1.copy(curve.v0).lerp(curve.v2, 0.5);
-      curve.v1.y += 0.9;
-      const attr = o.link.geometry.attributes.position;
-      for (let k = 0; k <= LINK_SEGMENTS; k++) {
-        curve.getPoint(k / LINK_SEGMENTS, tmp);
-        attr.setXYZ(k, tmp.x, tmp.y, tmp.z);
-      }
-      attr.needsUpdate = true;
-      for (const p of o.packets) curve.getPoint((elapsed * 0.32 + p.offset) % 1, p.mesh.position);
+      o.el.classList.toggle('is-current', CURRENT[section]?.includes(o.link) ?? false);
+      o.el.classList.toggle('is-hovered', hovered === o.link || linked === o.link);
     }
   }
 
-  // Labels on the far side of the constellation fade out.
-  function shadeSkillLabels() {
-    toCamera.copy(camera.position).sub(SKILLS_CENTER).normalize();
-    for (const s of skillLabels) {
-      s.label.getWorldPosition(starWorld).sub(SKILLS_CENTER).normalize();
-      const facing = starWorld.dot(toCamera);
-      s.text.style.opacity = (0.2 + 0.8 * THREE.MathUtils.smoothstep(facing, -0.4, 0.6)).toFixed(2);
+  function updateGlow(dt) {
+    for (const h of base.hangars) {
+      const target = hovered === h.id || linked === h.id ? 1 : 0;
+      const k = reducedMotion ? target : THREE.MathUtils.damp(glow.get(h.id), target, 8, dt);
+      glow.set(h.id, k);
+      h.glow(k);
     }
+  }
+
+  // Five reds come on one by one, then all go out.
+  function startLights(t) {
+    base.startLights.forEach((mat, i) => {
+      const on = !reducedMotion && t > 0.6 + i * 0.55 && t < 3.6;
+      mat.color.setRGB(on ? 3.2 : 0.1, on ? 0.05 : 0.01, on ? 0.08 : 0.02);
+    });
   }
 
   function render() {
@@ -414,12 +331,15 @@ export function createScene({
     const dt = Math.min(timer.getDelta(), 0.05);
 
     if (reducedMotion) {
-      // No camera flights and no idle animation: cut to the section's shot, draw only on change.
       if (!needsRender) return;
-      shotAt(Math.round(progress), camera.position, lookAt);
+      const section = Math.round(progress);
+      carU = ANCHORS[section];
+      placeCar(carU);
+      cameraFor(section, camera.position, lookAt);
       camera.lookAt(lookAt);
-      placeNodes(0);
-      shadeSkillLabels();
+      startLights(0);
+      updateGlow(dt);
+      updateMarkers();
       render();
       needsRender = false;
       return;
@@ -427,25 +347,32 @@ export function createScene({
 
     elapsed += dt;
 
-    shotAt(progress, desiredPos, desiredLook);
+    // Drive: the car eases towards the point the scroll asks for.
+    const before = carU;
+    carU = THREE.MathUtils.damp(carU, targetU(progress), 2.4, dt);
+    placeCar(carU);
+    car.roll((carU - before) * track.length);
+
+    const driving = cameraFor(progress, desiredPos, desiredLook);
     parallax.lerp(parallaxTarget, 1 - Math.exp(-dt * 3));
-    desiredPos.x += parallax.x * 0.45;
-    desiredPos.y += parallax.y * 0.28;
-    const ease = 1 - Math.exp(-dt * 3.2);
+    desiredPos.x += parallax.x * 0.6 * (1 - driving);
+    desiredPos.y += parallax.y * 0.35 * (1 - driving);
+    const ease = 1 - Math.exp(-dt * (driving > 0.5 ? 6 : 3.2));
     camera.position.lerp(desiredPos, ease);
     lookAt.lerp(desiredLook, ease);
     camera.lookAt(lookAt);
 
-    monitor.position.y = Math.sin(elapsed * 0.9) * 0.07;
-    monitor.rotation.y = Math.sin(elapsed * 0.35) * 0.06;
+    // Thinner fog for the view from above.
+    const overview = smooth(3.4, 4, progress);
+    scene.fog.density = THREE.MathUtils.lerp(0.014, 0.003, overview);
+    base.beams.opacity = 0.02 * (1 - overview); // light beams only read from the ground
+
     terminal.update(dt);
-
-    placeNodes(dt);
+    base.update(elapsed);
+    startLights(elapsed);
+    updateGlow(dt);
     if (mouseOnCanvas) pick();
-
-    constellation.rotation.y += dt * 0.08;
-    shadeSkillLabels();
-    dust.rotation.y += dt * 0.004;
+    updateMarkers();
 
     render();
 
@@ -465,15 +392,21 @@ export function createScene({
     }
   }
 
+  placeCar(carU);
+  cameraFor(0, camera.position, lookAt);
+  camera.lookAt(lookAt);
   resize();
   window.addEventListener('resize', resize);
   renderer.setAnimationLoop(tick);
 
   return {
     setProgress(p) {
-      const section = SECTIONS[Math.round(p)] || 'hero';
-      if (labelLayer.dataset.section !== section) labelLayer.dataset.section = section;
-      if (reducedMotion && Math.round(p) !== Math.round(progress)) needsRender = true;
+      const section = Math.round(p);
+      if (section !== lastSection) {
+        lastSection = section;
+        labelLayer.dataset.section = SECTIONS[section] || 'hero';
+        needsRender = true;
+      }
       progress = p;
     },
     setLanguage(l) {
@@ -487,102 +420,18 @@ export function createScene({
   };
 }
 
-// Camera holds on each shot while its section is centred, then moves between them.
+function faceTrack(track, object, u) {
+  const p = track.at(u, new THREE.Vector3());
+  p.y = object.position.y;
+  object.lookAt(p);
+}
+
+// Holds on each section while it is centred, moves in between.
 function holdEase(t) {
-  const x = THREE.MathUtils.clamp((t - 0.15) / 0.7, 0, 1);
+  return smooth(0.15, 0.85, t);
+}
+
+function smooth(a, b, t) {
+  const x = THREE.MathUtils.clamp((t - a) / (b - a), 0, 1);
   return x * x * (3 - 2 * x);
-}
-
-function shapeGeometry(shape) {
-  if (shape === 'octahedron') return new THREE.OctahedronGeometry(0.34, 0);
-  if (shape === 'dodecahedron') return new THREE.DodecahedronGeometry(0.3, 0);
-  return new THREE.IcosahedronGeometry(0.32, 0);
-}
-
-function roundedRect(w, h, r, steps = 6) {
-  const x = w / 2 - r;
-  const y = h / 2 - r;
-  const corners = [
-    [x, y, 0],
-    [-x, y, Math.PI / 2],
-    [-x, -y, Math.PI],
-    [x, -y, Math.PI * 1.5],
-  ];
-  const pts = [];
-  for (const [cx, cy, start] of corners) {
-    for (let i = 0; i <= steps; i++) {
-      const a = start + (i / steps) * (Math.PI / 2);
-      pts.push(new THREE.Vector3(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 0));
-    }
-  }
-  return new THREE.BufferGeometry().setFromPoints(pts);
-}
-
-function fibonacciSphere(n, radius) {
-  const pts = [];
-  const golden = Math.PI * (3 - Math.sqrt(5));
-  for (let i = 0; i < n; i++) {
-    const y = 1 - (i / (n - 1)) * 2;
-    const r = Math.sqrt(1 - y * y);
-    const a = golden * i;
-    pts.push(new THREE.Vector3(Math.cos(a) * r, y, Math.sin(a) * r).multiplyScalar(radius));
-  }
-  return pts;
-}
-
-function haloTexture() {
-  const c = document.createElement('canvas');
-  c.width = c.height = 256;
-  const ctx = c.getContext('2d');
-  const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-  g.addColorStop(0, 'rgba(56, 225, 255, 0.55)');
-  g.addColorStop(0.35, 'rgba(120, 140, 255, 0.22)');
-  g.addColorStop(0.7, 'rgba(167, 139, 250, 0.06)');
-  g.addColorStop(1, 'rgba(0, 0, 0, 0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 256, 256);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-
-function makeDust(count) {
-  const positions = new Float32Array(count * 3);
-  const colors = new Float32Array(count * 3);
-  const tints = [new THREE.Color(0x38e1ff), new THREE.Color(0xa78bfa), new THREE.Color(0xc8d4ff)];
-  for (let i = 0; i < count; i++) {
-    positions[i * 3] = THREE.MathUtils.randFloatSpread(70);
-    positions[i * 3 + 1] = THREE.MathUtils.randFloat(-2.4, 16);
-    positions[i * 3 + 2] = THREE.MathUtils.randFloat(-40, 10);
-    const c = tints[i % tints.length];
-    const k = THREE.MathUtils.randFloat(0.35, 1);
-    colors[i * 3] = c.r * k;
-    colors[i * 3 + 1] = c.g * k;
-    colors[i * 3 + 2] = c.b * k;
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-  const c = document.createElement('canvas');
-  c.width = c.height = 32;
-  const ctx = c.getContext('2d');
-  const g = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-  g.addColorStop(0, 'rgba(255,255,255,1)');
-  g.addColorStop(0.4, 'rgba(255,255,255,0.5)');
-  g.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 32, 32);
-
-  return new THREE.Points(
-    geometry,
-    new THREE.PointsMaterial({
-      size: 0.09,
-      map: new THREE.CanvasTexture(c),
-      vertexColors: true,
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    }),
-  );
 }

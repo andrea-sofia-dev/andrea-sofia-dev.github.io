@@ -106,6 +106,7 @@ a {
 main {
   position: relative;
   z-index: 2;
+  isolation: isolate;
   pointer-events: none; /* clicks pass through to the scene, except on the panels */
 }
 
@@ -258,6 +259,16 @@ p {
 
 .hero {
   position: relative;
+}
+
+/* A dark veil behind the hero text, so the 3D scene never fights with it. */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, rgba(4, 6, 11, 0.82) 0%, rgba(4, 6, 11, 0.55) 38%, rgba(4, 6, 11, 0) 60%);
+  pointer-events: none;
 }
 
 .hero .panel {
@@ -654,53 +665,80 @@ p {
   color: var(--text);
 }
 
-/* ---------- labels drawn over the 3D scene ---------- */
+/* ---------- objective markers over the 3D scene ---------- */
 
-.node-label,
-.skill-label {
-  transition: opacity 0.5s;
+.marker {
+  --c: var(--cyan);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.55;
+  transition: opacity 0.4s;
 }
 
-.node-label span {
-  display: block;
-  padding: 5px 11px;
-  border: 1px solid var(--c);
-  border-radius: 999px;
-  background: rgba(5, 7, 12, 0.72);
-  box-shadow: 0 0 16px -2px var(--c);
-  color: var(--text);
-  font: 600 12px var(--mono);
+.marker.is-current,
+.marker.is-hovered {
+  opacity: 1;
+}
+
+.marker-tag {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  color: var(--c);
+  font: 700 13px var(--mono);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/* The diamond is drawn behind the letter, so the letter stays upright. */
+.marker-tag::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  z-index: -1;
+  border: 2px solid var(--c);
+  background: rgba(5, 7, 12, 0.78);
+  box-shadow: 0 0 14px -2px var(--c);
+  transform: rotate(45deg);
+}
+
+.marker-text {
+  display: flex;
+  flex-direction: column;
+  font: 600 12px/1.25 var(--mono);
+  text-shadow:
+    0 1px 3px #000,
+    0 0 10px rgba(0, 0, 0, 0.8);
   white-space: nowrap;
   cursor: pointer;
   pointer-events: auto;
 }
 
-.skill-label {
+.marker-text b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.marker-text i {
+  color: var(--c);
+  font-style: normal;
+}
+
+.marker.is-current .marker-tag::before {
+  animation: ping 1.6s ease-out infinite;
+}
+
+/* On the start screen only the next objective shows; the hero text needs the space. */
+#labels[data-section='hero'] .marker:not(.is-current) {
   opacity: 0;
 }
 
-.skill-label span {
-  display: block;
-  color: #d6e2ff;
-  font: 500 12.5px var(--mono);
-  white-space: nowrap;
-  text-shadow:
-    0 0 8px rgba(56, 225, 255, 0.55),
-    0 0 2px #000;
-}
-
-#labels[data-section='stack'] .skill-label {
-  opacity: 1;
-}
-
-#labels[data-section='how'] .node-label,
-#labels[data-section='stack'] .node-label {
-  opacity: 0;
-}
-
-#labels[data-section='how'] .node-label span,
-#labels[data-section='stack'] .node-label span {
-  pointer-events: none;
+#labels[data-section='contact'] .marker {
+  opacity: 0.85;
 }
 
 /* ---------- small screens: text at the bottom, scene above it ---------- */
@@ -776,6 +814,15 @@ p {
   }
   50% {
     transform: translate(-50%, 6px);
+  }
+}
+
+@keyframes ping {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 80%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 12px transparent;
   }
 }
 
