@@ -104,7 +104,7 @@ export const it = {
   'p.site.b2': 'Rispetta la riduzione del movimento; abbassa la qualità sui dispositivi lenti',
   'p.rng.tag': 'Demo 3D',
   'p.rng.d':
-    'Il mio portfolio come una gara notturna: scorri per guidare una monoposto giro dopo giro, guarda la squadra cambiare le gomme al box di ogni progetto, insegui i tempi dei settori e il fantasma del tuo giro migliore su un HUD da videogioco. Tutto costruito nel codice, senza modelli 3D.',
+    'Una gara notturna nel browser: scorri per guidare una monoposto per le strade di Roma, giro dopo giro. Pit stop con la squadra animata, tempi per settore, il fantasma del giro migliore e la telecronaca dal vivo. Tutto costruito nel codice, senza modelli 3D.',
   'p.rng.b1': "Squadre ai box articolate e disegnate con l'instancing: 33 persone, una chiamata di disegno per ogni parte del corpo",
   'p.rng.b2': 'Una logica di gara che regge: giri infiniti, link diretti e ricariche, eventi legati alla posizione sul giro',
   'p.rng.b3': 'Shader compilati in anticipo, bloom con antialiasing e qualità che si abbassa sui dispositivi lenti',
