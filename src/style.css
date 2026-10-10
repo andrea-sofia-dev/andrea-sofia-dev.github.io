@@ -340,6 +340,12 @@ p {
   background: #74ebff;
 }
 
+.btn--sm {
+  margin: 4px 0 12px;
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
 .meta {
   display: flex;
   align-items: center;

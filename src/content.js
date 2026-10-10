@@ -77,7 +77,8 @@ export const it = {
 
   'projects.kicker': 'Progetti',
   'projects.title': 'Cose che ho costruito in pubblico',
-  'p.wpd.tag': 'CLI · MCP',
+  'p.wpd.tag': 'Web · CLI · MCP',
+  'p.wpd.try': 'Provalo online →',
   'p.wpd.d':
     'PageSpeed ti dice che il server è lento; wp-doctor ti dice perché, e se i visitatori veri prendono la cache: con il cookie del consenso, con i parametri utm_*, dal telefono.',
   'p.wpd.b1': "Server MCP: un agente IA lancia i controlli e propone le correzioni per il tuo stack",
