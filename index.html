@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Andrea Sofia · Full Stack Web Developer</title>
+    <meta
+      name="description"
+      content="Andrea Sofia, Full Stack Web Developer in Rome. I build and run production websites with AI agents: WordPress, MCP servers, AI integrations, Cloudflare."
+    />
+    <link rel="canonical" href="https://andrea-sofia-dev.github.io/" />
+    <meta name="theme-color" content="#05070c" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://andrea-sofia-dev.github.io/" />
+    <meta property="og:title" content="Andrea Sofia · Full Stack Web Developer" />
+    <meta
+      property="og:description"
+      content="Full Stack Web Developer · Agentic Engineering · AI Integrations. A 3D portfolio built with Three.js and Claude Code."
+    />
+    <meta property="og:image" content="https://andrea-sofia-dev.github.io/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        "name": "Andrea Sofia",
+        "jobTitle": "Full Stack Web Developer",
+        "url": "https://andrea-sofia-dev.github.io/",
+        "sameAs": ["https://github.com/andrea-sofia-dev", "https://www.linkedin.com/in/andrea-sofia-dev/"],
+        "address": { "@type": "PostalAddress", "addressLocality": "Rome", "addressCountry": "IT" },
+        "knowsAbout": ["WordPress", "Agentic engineering", "Claude Code", "Model Context Protocol", "Three.js", "Cloudflare", "Moodle"]
+      }
+    </script>
+    <script type="module" src="/src/main.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main" data-i18n="skip">Skip to content</a>
+
+    <canvas id="scene" aria-hidden="true"></canvas>
+    <div id="labels" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="Andrea Sofia"><span>as</span><span class="brand-cursor">_</span></a>
+      <nav class="nav" aria-label="Sections">
+        <a href="#how" data-i18n="nav.how">How I work</a>
+        <a href="#projects" data-i18n="nav.projects">Projects</a>
+        <a href="#stack" data-i18n="nav.stack">Stack</a>
+        <a href="#contact" data-i18n="nav.contact">Contact</a>
+      </nav>
+      <button id="lang" class="lang" type="button" lang="it" aria-label="Leggi in italiano">IT</button>
+    </header>
+
+    <main id="main">
+      <section id="top" class="section hero" data-shot>
+        <div class="panel">
+          <p class="eyebrow mono"><span class="prompt">~/</span>andrea-sofia-dev</p>
+          <h1>Andrea Sofia</h1>
+          <p class="role">
+            <span>Full Stack Web Developer</span> <span class="sep">·</span> <span>Agentic Engineering</span>
+            <span class="sep">·</span> <span>AI Integrations</span>
+          </p>
+          <p class="lead" data-i18n="hero.lead">
+            I build and run production websites with AI agents. The agent writes, tests and ships the code; I set the
+            rules, review every release and answer for what goes live.
+          </p>
+          <div class="actions">
+            <a class="btn btn--primary" href="#projects" data-i18n="hero.cta">See the projects</a>
+            <a class="btn" href="https://github.com/andrea-sofia-dev">GitHub</a>
+            <a class="btn" href="https://www.linkedin.com/in/andrea-sofia-dev/">LinkedIn</a>
+          </div>
+          <p class="meta mono"><span class="dot" aria-hidden="true"></span><span data-i18n="hero.meta">Rome, Italy · Web developer at Università.it</span></p>
+        </div>
+        <p class="scroll-hint mono" aria-hidden="true"><span data-i18n="hero.scroll">scroll</span> ↓</p>
+      </section>
+
+      <section id="how" class="section" data-shot>
+        <div class="panel">
+          <p class="kicker mono">01 / <span data-i18n="how.kicker">How I work</span></p>
+          <h2 data-i18n="how.title">Agentic engineering, with a human in charge</h2>
+          <p class="intro" data-i18n="how.intro">
+            I work with Claude Code every day. The agent does the typing; I own the architecture, the rules and the
+            result.
+          </p>
+          <ol class="steps">
+            <li>
+              <span class="step-n mono" aria-hidden="true">01</span>
+              <div>
+                <h3 data-i18n="how.s1.t">Set the rules</h3>
+                <p data-i18n="how.s1.d">
+                  Goal, limits and what the agent must never touch, written into the project before any code.
+                </p>
+              </div>
+            </li>
+            <li>
+              <span class="step-n mono" aria-hidden="true">02</span>
+              <div>
+                <h3 data-i18n="how.s2.t">Build</h3>
+                <p data-i18n="how.s2.d">
+                  The agent reads the code, writes the change and runs the tools: tests, linters, the server's own PHP
+                  version.
+                </p>
+              </div>
+            </li>
+            <li>
+              <span class="step-n mono" aria-hidden="true">03</span>
+              <div>
+                <h3 data-i18n="how.s3.t">Verify</h3>
+                <p data-i18n="how.s3.d">
+                  Before and after every release: backup, syntax check, live pages, browser console, error log.
+                </p>
+              </div>
+            </li>
+            <li>
+              <span class="step-n mono" aria-hidden="true">04</span>
+              <div>
+                <h3 data-i18n="how.s4.t">Ship small</h3>
+                <p data-i18n="how.s4.d">
+                  One step at a time, with a rollback command ready. If something looks off, it stops and asks.
+                </p>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section id="projects" class="section" data-shot>
+        <div class="panel panel--projects">
+          <p class="kicker mono">02 / <span data-i18n="projects.kicker">Projects</span></p>
+          <h2 data-i18n="projects.title">Things I've built in public</h2>
+
+          <div class="cards">
+            <article class="card" data-node="wp-doctor" style="--c: var(--cyan)" tabindex="-1">
+              <header class="card-head">
+                <span class="card-dot" aria-hidden="true"></span>
+                <h3><a href="https://github.com/andrea-sofia-dev/wp-doctor">wp-doctor</a></h3>
+                <span class="tag mono" data-i18n="p.wpd.tag">CLI · MCP</span>
+              </header>
+              <p data-i18n="p.wpd.d">
+                PageSpeed tells you the server is slow; wp-doctor tells you why, and whether real visitors get the
+                cache: with a consent cookie, with utm_* parameters, on a phone.
+              </p>
+              <ul class="bullets">
+                <li data-i18n="p.wpd.b1">MCP server: an AI agent runs the checks and proposes fixes for your stack</li>
+                <li data-i18n="p.wpd.b2">
+                  Recognises Cloudflare, Fastly, Varnish, LiteSpeed and the main WordPress cache plugins
+                </li>
+                <li data-i18n="p.wpd.b3">Zero dependencies · results in the terminal, as JSON or as an HTML report</li>
+              </ul>
+              <div class="cmd mono">
+                <code>npx github:andrea-sofia-dev/wp-doctor example.com</code>
+                <button class="copy" type="button" data-copy="npx github:andrea-sofia-dev/wp-doctor example.com" data-i18n="copy">
+                  Copy
+                </button>
+              </div>
+              <p class="stack-line mono">Node.js · MCP · HTTP caching</p>
+            </article>
+
+            <article class="card" data-node="case-study" style="--c: var(--violet)" tabindex="-1">
+              <header class="card-head">
+                <span class="card-dot" aria-hidden="true"></span>
+                <h3>
+                  <a href="https://github.com/andrea-sofia-dev/wordpress-performance-case-study" data-i18n="p.cs.title"
+                    >Case study: WordPress performance</a
+                  >
+                </h3>
+                <span class="tag mono" data-i18n="p.cs.tag">Write-up</span>
+              </header>
+              <p data-i18n="p.cs.d">
+                How I made a WordPress + Divi portal 3× faster on shared hosting, without changing the design, the theme
+                or the host.
+              </p>
+              <dl class="stats">
+                <div>
+                  <dt data-i18n="p.cs.s1">Server response</dt>
+                  <dd><span data-i18n="p.cs.s1.before">2.9 s →</span> <strong data-i18n="p.cs.s1.after">0.8 s</strong></dd>
+                </div>
+                <div>
+                  <dt data-i18n="p.cs.s2">Lighthouse mobile</dt>
+                  <dd><span>28 →</span> <strong>~50</strong></dd>
+                </div>
+                <div>
+                  <dt data-i18n="p.cs.s3">LCP (mobile)</dt>
+                  <dd><span data-i18n="p.cs.s3.before">16–20 s →</span> <strong data-i18n="p.cs.s3.after">~4 s</strong></dd>
+                </div>
+              </dl>
+              <p class="stack-line mono">WordPress · Divi · WP Super Cache · Cloudflare</p>
+            </article>
+
+            <article class="card" data-node="this-site" style="--c: var(--mint)" tabindex="-1">
+              <header class="card-head">
+                <span class="card-dot" aria-hidden="true"></span>
+                <h3>
+                  <a href="https://github.com/andrea-sofia-dev/andrea-sofia-dev.github.io" data-i18n="p.site.title">This site</a>
+                </h3>
+                <span class="tag mono">Three.js</span>
+              </header>
+              <p data-i18n="p.site.d">
+                A 3D portfolio in plain JavaScript: Three.js and Vite, no framework, no cookies, no trackers. Built
+                agentically with Claude Code, from the first line to the deploy.
+              </p>
+              <ul class="bullets">
+                <li data-i18n="p.site.b1">Text first: the page reads fine before the 3D loads, and without WebGL at all</li>
+                <li data-i18n="p.site.b2">Respects reduced motion; lowers the quality on slow devices</li>
+              </ul>
+              <p class="stack-line mono">Three.js · Vite · GitHub Actions</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="stack" class="section" data-shot>
+        <div class="panel">
+          <p class="kicker mono">03 / <span data-i18n="stack.kicker">What I work on</span></p>
+          <h2 data-i18n="stack.title">From the plugin to the server</h2>
+          <p class="intro" data-i18n="stack.intro">
+            I look after five Italian university guidance portals end to end. Here's what that involves:
+          </p>
+          <ul class="areas">
+            <li>
+              <h3 data-i18n="stack.a1.t">Custom WordPress</h3>
+              <p data-i18n="stack.a1.d">Plugins and child themes in PHP and JavaScript, Contact Form 7, Divi.</p>
+            </li>
+            <li>
+              <h3 data-i18n="stack.a2.t">AI features</h3>
+              <p data-i18n="stack.a2.d">Chatbots and tutors built on the Claude API; MCP servers for agents.</p>
+            </li>
+            <li>
+              <h3 data-i18n="stack.a3.t">Integrations</h3>
+              <p data-i18n="stack.a3.d">CRM via REST APIs, email marketing, Google Sheets, retry queues for lead forms.</p>
+            </li>
+            <li>
+              <h3 data-i18n="stack.a4.t">E-learning</h3>
+              <p data-i18n="stack.a4.d">Moodle platforms with custom plugins, themes and an AI tutor.</p>
+            </li>
+            <li>
+              <h3 data-i18n="stack.a5.t">Security & performance</h3>
+              <p data-i18n="stack.a5.d">Cloudflare WAF and caching, Redis, Core Web Vitals.</p>
+            </li>
+            <li>
+              <h3 data-i18n="stack.a6.t">Tracking & privacy</h3>
+              <p data-i18n="stack.a6.d">GTM, GA4, server-side events and GDPR consent management.</p>
+            </li>
+          </ul>
+          <h3 class="chips-title mono" data-i18n="stack.tools">Tools</h3>
+          <ul class="chips mono">
+            <li>Claude Code</li>
+            <li>PHP</li>
+            <li>JavaScript</li>
+            <li>Node.js</li>
+            <li>WordPress</li>
+            <li>Moodle</li>
+            <li>MySQL</li>
+            <li>Redis</li>
+            <li>Cloudflare</li>
+            <li>Linux</li>
+            <li>Git</li>
+            <li>Python</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="contact" class="section" data-shot>
+        <div class="panel">
+          <p class="kicker mono">04 / <span data-i18n="contact.kicker">Contact</span></p>
+          <h2 data-i18n="contact.title">Let's talk</h2>
+          <p class="intro" data-i18n="contact.d">
+            Questions about agentic development, WordPress or AI integrations? Write to me on LinkedIn.
+          </p>
+          <div class="actions">
+            <a class="btn btn--primary" href="https://www.linkedin.com/in/andrea-sofia-dev/">LinkedIn</a>
+            <a class="btn" href="https://github.com/andrea-sofia-dev">GitHub</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer mono">
+      <span>© 2026 Andrea Sofia</span>
+      <span data-i18n="footer.built">Built with Three.js and Claude Code</span>
+      <span data-i18n="footer.privacy">No cookies, no trackers</span>
+      <a href="https://github.com/andrea-sofia-dev/andrea-sofia-dev.github.io" data-i18n="footer.source">Source code</a>
+    </footer>
+  </body>
+</html>
