@@ -11,6 +11,7 @@ import { createCar } from './world/car.js';
 import { buildBase, lightPool, faceTrack } from './world/base.js';
 import { buildStreet } from './world/street.js';
 import { buildGym } from './world/gym.js';
+import { buildPits, pitLateral, PIT_LATERAL } from './world/pit.js';
 
 const BG = 0x04060b;
 const SECTIONS = ['hero', 'how', 'projects', 'stack', 'contact'];
@@ -60,7 +61,19 @@ const FinishShader = {
   `,
 };
 
-export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, reducedMotion, onNodeHover, onNodeClick, onEvent }) {
+export function createScene({
+  canvas,
+  labelLayer,
+  nodes,
+  skills,
+  scripts,
+  lang,
+  reducedMotion,
+  onNodeHover,
+  onNodeClick,
+  onEvent,
+  onFrame,
+}) {
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -125,8 +138,15 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
   const street = buildStreet({ track, gates: SPOTS.gates, trap: SPOTS.trap });
   scene.add(street.group);
 
+  const pits = buildPits({ track, nodes, boxes: SPOTS.garages });
+  scene.add(pits.group);
+  // In the projects section the car stops in front of the garage of the project being read.
+  let activeBox = 1;
+  ANCHORS[2] = SPOTS.garages[activeBox];
+
   // Pools of light where the action is.
   const tmp = new THREE.Vector3();
+  const tmp2 = new THREE.Vector3();
   lightPool(track.beside(SPOTS.screen, 9, tmp), 9, 0x9fe8ff, 0.14);
   for (const u of SPOTS.garages) lightPool(track.beside(u, 12, tmp), 7, 0xcfdcff, 0.12);
   lightPool(track.beside(0, 0, tmp), 8, 0xcfdcff, 0.12);
@@ -178,7 +198,6 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
   base.group.updateMatrixWorld(true);
   gym.group.updateMatrixWorld(true);
   const screenCentre = base.screen.localToWorld(new THREE.Vector3(0, 7.3, 0));
-  const garageMid = base.garages[1].group.position.clone();
   const rackCentre = gym.group.localToWorld(new THREE.Vector3(0, 2.9, -5.2));
 
   // Each shot writes a camera position and a point to look at.
@@ -193,13 +212,14 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
       // The pit wall screen with the agent session, the car parked in front.
       frameAt(ANCHORS[1]);
       pos.copy(P).addScaledVector(O, -11).addScaledVector(F, -12).addScaledVector(UP, 5.5);
-      look.copy(screenCentre).lerp(P, 0.3);
+      look.copy(screenCentre).lerp(P, 0.3).addScaledVector(UP, 1.2);
     },
     (pos, look) => {
-      // The three team garages, seen from the infield.
+      // The pit box in front of the garage of the project being read: three-quarter view from the track.
       frameAt(ANCHORS[2]);
-      pos.copy(P).addScaledVector(O, -15).addScaledVector(F, -2).addScaledVector(UP, 8);
-      look.copy(garageMid).addScaledVector(UP, 2.5).addScaledVector(O, -3);
+      const box = track.beside(ANCHORS[2], PIT_LATERAL, tmp2);
+      pos.copy(box).addScaledVector(O, -16).addScaledVector(F, 10).addScaledVector(UP, 7.5);
+      look.copy(box).addScaledVector(O, 3.5).addScaledVector(UP, 1.4);
     },
     (pos, look) => {
       // The paddock gym, close enough to read the plates.
@@ -216,8 +236,8 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
 
   function chase(u, pos, look) {
     frameAt(u);
-    pos.copy(car.object.position).addScaledVector(F, -10.5).addScaledVector(UP, 3.4).addScaledVector(O, 1.2);
-    look.copy(car.object.position).addScaledVector(F, 9).addScaledVector(UP, 0.9);
+    pos.copy(car.object.position).addScaledVector(carDir, -10.5).addScaledVector(UP, 3.4).addScaledVector(O, 1.2);
+    look.copy(car.object.position).addScaledVector(carDir, 9).addScaledVector(UP, 0.9);
   }
 
   // ---------- interaction ----------
@@ -292,6 +312,10 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
   // ?hq keeps full quality (used to capture the preview image on a slow headless GPU).
   let qualityChecked = new URLSearchParams(location.search).has('hq');
   let lastSection = -1;
+  let wentGreen = false;
+  let finished = false;
+  let topKmh = 0;
+  const emit = (event) => onEvent?.(event);
 
   function targetU(p) {
     const i = Math.min(Math.floor(p), ANCHORS.length - 1);
@@ -299,9 +323,12 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
     return THREE.MathUtils.lerp(ANCHORS[i], ANCHORS[j], holdEase(p - i));
   }
 
+  // On the track, or in the pit lane between the entry and the exit.
   function placeCar(u) {
-    track.at(u, car.object.position, carDir);
-    car.object.lookAt(tmp.copy(car.object.position).add(carDir));
+    track.beside(u, pitLateral(u), car.object.position);
+    track.beside(u + 0.0015, pitLateral(u + 0.0015), tmp);
+    carDir.copy(tmp).sub(car.object.position).normalize();
+    car.object.lookAt(tmp);
   }
 
   // Camera: the section's shot while the section is centred, a chase camera while driving between them.
@@ -398,9 +425,28 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
     base.update(elapsed);
     car.update(elapsed, speed);
     speedLines.update(dt, speed);
-    for (const event of street.update(elapsed, car.object.position, speed)) {
-      onEvent?.({ ...event, kmh: Math.round(speed * 320) });
+    const kmh = Math.round(speed * 320);
+    topKmh = Math.max(topKmh, kmh);
+    for (const event of street.update(elapsed, car.object.position, speed)) emit({ ...event, kmh });
+
+    // Pit stop: once the car has stopped in a box, the crew goes to work.
+    const parked = Math.round(progress) === 2 && Math.abs(carU - ANCHORS[2]) < 0.0012 && speed < 0.04;
+    const pit = pits.update(elapsed, parked ? activeBox : -1, true);
+    car.pit(pit.lift, pit.out);
+    if (pit.event) emit({ ...pit.event, id: nodes[pit.event.index].id });
+
+    // Race events: lights out, chequered flag.
+    if (!wentGreen && elapsed > 3.6) {
+      wentGreen = true;
+      emit({ type: 'go' });
     }
+    if (!finished && carU > 1.002 && Math.round(progress) === 4) {
+      finished = true;
+      emit({ type: 'finish', topKmh });
+    } else if (finished && carU < 0.95) {
+      finished = false;
+    }
+    onFrame?.({ kmh, speed, x: car.object.position.x, z: car.object.position.z, heading: Math.atan2(carDir.x, carDir.z) });
     finish.uniforms.uSpeed.value = speed;
     finish.uniforms.uTime.value = elapsed % 10;
     startLights(elapsed);
@@ -451,6 +497,29 @@ export function createScene({ canvas, labelLayer, nodes, skills, scripts, lang, 
     setLanguage(l) {
       terminal.setLang(l);
       needsRender = true;
+    },
+    // The project card being read: the car pits at its garage.
+    setActiveProject(id) {
+      const index = nodes.findIndex((n) => n.id === id);
+      if (index < 0 || index === activeBox) return;
+      activeBox = index;
+      ANCHORS[2] = SPOTS.garages[index];
+      needsRender = true;
+    },
+    // Everything the minimap draws, in world x/z.
+    map() {
+      const v = new THREE.Vector3();
+      const xz = (p) => [p.x, p.z];
+      const pitLane = [];
+      for (let u = 0.385; u <= 0.555; u += 0.005) pitLane.push(xz(track.beside(u, pitLateral(u), v)));
+      return {
+        track: track.points.map(xz),
+        pitLane,
+        gates: SPOTS.gates.map((u) => xz(track.at(u, v))),
+        garages: base.garages.map((g, i) => ({ at: xz(g.group.position), color: nodes[i].color })),
+        trap: xz(track.at(SPOTS.trap, v)),
+        finish: xz(track.at(0, v)),
+      };
     },
     highlight(id) {
       linked = id;

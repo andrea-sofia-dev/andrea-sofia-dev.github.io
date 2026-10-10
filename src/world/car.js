@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-// A generic open-wheel single-seater, F1-like but no real team or brand.
+// A generic open-wheel single-seater, F1-like (no halo, by request) but no real team or brand.
 // The body is lofted through oval cross-sections, nose to gearbox.
 // Local axes: +z forward, +y up, +x the car's left. Length ~5.4 m.
 
@@ -9,6 +9,8 @@ const REAR_R = 0.36;
 
 export function createCar({ envMap }) {
   const car = new THREE.Group();
+  const body = new THREE.Group(); // everything the jacks lift
+  car.add(body);
 
   const paint = new THREE.MeshPhysicalMaterial({
     color: 0x1b212b,
@@ -24,7 +26,7 @@ export function createCar({ envMap }) {
 
   // ---------- body ----------
   // [z, width, height, centre y]
-  car.add(
+  body.add(
     new THREE.Mesh(
       loft([
         [2.78, 0.12, 0.08, 0.22],
@@ -58,7 +60,7 @@ export function createCar({ envMap }) {
 
   // Sidepods, narrowing towards the back ("coke bottle"). [z, width, height, centre y, centre x]
   for (const side of [1, -1]) {
-    car.add(
+    body.add(
       new THREE.Mesh(
         loft([
           [0.55, 0.34, 0.28, 0.34, 0.5 * side],
@@ -77,7 +79,7 @@ export function createCar({ envMap }) {
     // Mirror on a stalk.
     const mirror = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, 0.04), carbon);
     mirror.position.set(0.42 * side, 0.66, 0.52);
-    car.add(intake, mirror, rod([0.25 * side, 0.55, 0.5], [0.4 * side, 0.65, 0.52], 0.012, carbon));
+    body.add(intake, mirror, rod([0.25 * side, 0.55, 0.5], [0.4 * side, 0.65, 0.52], 0.012, carbon));
   }
 
   // Floor.
@@ -92,9 +94,9 @@ export function createCar({ envMap }) {
   floorShape.lineTo(0.3, 1.25);
   const floor = new THREE.Mesh(new THREE.ExtrudeGeometry(floorShape, { depth: 0.03, bevelEnabled: false }).rotateX(Math.PI / 2), carbon);
   floor.position.y = 0.13;
-  car.add(floor);
+  body.add(floor);
 
-  // ---------- cockpit: driver, halo ----------
+  // ---------- cockpit: the driver ----------
   const helmet = new THREE.Mesh(
     new THREE.SphereGeometry(0.14, 24, 16),
     new THREE.MeshPhysicalMaterial({ color: 0xe8eef7, roughness: 0.25, clearcoat: 1, envMap, envMapIntensity: 0.4 }),
@@ -109,12 +111,7 @@ export function createCar({ envMap }) {
   helmetStripe.rotation.y = Math.PI / 2;
   helmetStripe.position.copy(helmet.position);
 
-  const halo = new THREE.Mesh(
-    new THREE.TorusGeometry(0.31, 0.028, 8, 36, (Math.PI * 4) / 3).rotateX(Math.PI / 2).rotateY(Math.PI / 6),
-    carbon,
-  );
-  halo.position.set(0, 0.87, 0.1);
-  car.add(helmet, visor, helmetStripe, halo, rod([0, 0.87, 0.41], [0, 0.56, 0.62], 0.03, carbon));
+  body.add(helmet, visor, helmetStripe);
 
   // ---------- wings ----------
   const frontWing = new THREE.Group();
@@ -131,7 +128,7 @@ export function createCar({ envMap }) {
     edge.position.set(0.98 * side, 0.185, -0.05);
     frontWing.add(plate, edge);
   }
-  car.add(frontWing);
+  body.add(frontWing);
 
   const rearWing = new THREE.Group();
   rearWing.position.set(0, 0, -2.42);
@@ -157,22 +154,22 @@ export function createCar({ envMap }) {
   const rain = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.06, 0.03), rainMat);
   rain.position.set(0, 0.36, -0.12);
   rearWing.add(rain);
-  car.add(rearWing);
+  body.add(rearWing);
 
   // Engine cover fin with the number.
   const fin = profile([[-0.45, 0.98], [-2.2, 0.9], [-2.2, 0.62], [-1.2, 0.55]], 0.03, paint);
-  car.add(fin);
+  body.add(fin);
   const number = numberTexture('10');
   for (const side of [1, -1]) {
     const decal = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.3), new THREE.MeshBasicMaterial({ map: number, transparent: true }));
     decal.position.set(0.02 * side, 0.76, -1.45);
     decal.rotation.y = (side * Math.PI) / 2;
-    car.add(decal);
+    body.add(decal);
   }
   const noseNumber = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.14), new THREE.MeshBasicMaterial({ map: number, transparent: true }));
   noseNumber.position.set(0, 0.43, 1.75);
   noseNumber.rotation.x = -Math.PI / 2 + 0.16;
-  car.add(noseNumber);
+  body.add(noseNumber);
 
   // ---------- wheels and suspension ----------
   const rubber = new THREE.MeshStandardMaterial({ color: 0x0b0b0d, roughness: 0.92 });
@@ -186,6 +183,7 @@ export function createCar({ envMap }) {
   ]) {
     const wheel = new THREE.Group();
     wheel.position.set(x, r, z);
+    wheel.userData.homeX = x;
     const tyre = new THREE.Mesh(new THREE.CylinderGeometry(r, r, w, 36).rotateZ(Math.PI / 2), rubber);
     const outer = Math.sign(x) * (w / 2 + 0.002);
     // Coloured compound band and a wheel cover on the outer sidewall.
@@ -199,10 +197,10 @@ export function createCar({ envMap }) {
     spoke.position.x = outer + Math.sign(x) * 0.003;
     wheel.add(tyre, ring, cover, spoke);
     wheels.push(wheel);
-    car.add(wheel);
+    body.add(wheel);
   }
   for (const side of [1, -1]) {
-    car.add(
+    body.add(
       rod([0.16 * side, 0.4, 1.95], [0.68 * side, 0.42, 1.76], 0.016, carbon),
       rod([0.16 * side, 0.3, 1.55], [0.68 * side, 0.27, 1.74], 0.016, carbon),
       rod([0.14 * side, 0.44, 1.7], [0.66 * side, 0.3, 1.78], 0.014, carbon),
@@ -243,10 +241,16 @@ export function createCar({ envMap }) {
   });
   const flame = new THREE.Mesh(new THREE.ConeGeometry(0.11, 1, 16, 1, true).rotateX(-Math.PI / 2).translate(0, 0, -0.5), flameMat);
   flame.position.set(0, 0.36, -2.5);
-  car.add(underglow, flame);
+  car.add(underglow);
+  body.add(flame);
 
   return {
     object: car,
+    // Pit stop: lift on the jacks (metres) and wheels pulled out (0 to 1).
+    pit(lift, out) {
+      body.position.y = lift;
+      for (const w of wheels) w.position.x = w.userData.homeX * (1 + out * 0.9);
+    },
     roll(distance) {
       for (const w of wheels) w.rotation.x += distance / w.position.y;
     },

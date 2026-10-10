@@ -665,80 +665,438 @@ p {
   color: var(--text);
 }
 
-/* ---------- objective markers over the 3D scene ---------- */
+/* ---------- game HUD over the 3D scene ---------- */
 
-.marker {
-  --c: var(--cyan);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  opacity: 0.55;
-  transition: opacity 0.4s;
+.hud {
+  --hud-font: 'Chakra Petch', var(--font);
+  --gold: #ffd23f;
+  position: fixed;
+  inset: 0;
+  z-index: 1; /* above the scene, below the text panels: it never covers what you read */
+  color: #eaf6ff;
+  font-family: var(--hud-font);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1s 0.6s;
 }
 
-.marker.is-current,
-.marker.is-hovered {
+.webgl .hud {
   opacity: 1;
 }
 
-.marker-tag {
-  position: relative;
-  isolation: isolate;
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  color: var(--c);
-  font: 700 13px var(--mono);
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-/* The diamond is drawn behind the letter, so the letter stays upright. */
-.marker-tag::before {
-  content: '';
+.hud-radar {
   position: absolute;
-  inset: 3px;
-  z-index: -1;
-  border: 2px solid var(--c);
-  background: rgba(5, 7, 12, 0.78);
-  box-shadow: 0 0 14px -2px var(--c);
-  transform: rotate(45deg);
+  top: 78px;
+  right: clamp(16px, 3vw, 40px);
+  width: 148px;
 }
 
-.marker-text {
+.hud-radar canvas {
+  display: block;
+  width: 148px;
+  height: 148px;
+  filter: drop-shadow(0 0 18px rgba(56, 225, 255, 0.25));
+}
+
+.hud-level,
+.hud-race {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.hud-lv {
+  color: var(--gold);
+}
+
+.hud-bar {
+  flex: 1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.hud-bar i {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--gold);
+  box-shadow: 0 0 8px var(--gold);
+  transition: width 0.6s;
+}
+
+.hud-xp,
+.hud-race {
+  color: var(--muted);
+}
+
+/* Position, lap and clock: a bar at the top of the scene, like racing games. */
+.hud-race {
+  position: absolute;
+  top: 72px;
+  left: calc(50% + 300px);
+  gap: 18px;
+  margin: 0;
+  padding: 6px 16px;
+  border-bottom: 2px solid rgba(56, 225, 255, 0.5);
+  background: linear-gradient(180deg, rgba(4, 8, 14, 0.75), rgba(4, 8, 14, 0.35));
+  font-size: 13px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.hud-clock {
+  color: #eaf6ff;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Event feed bottom right, next to the speedometer (where Call of Duty keeps its feed). */
+.hud-feed {
+  position: absolute;
+  right: calc(clamp(16px, 3vw, 40px) + 230px);
+  bottom: 70px;
   display: flex;
   flex-direction: column;
-  font: 600 12px/1.25 var(--mono);
-  text-shadow:
-    0 1px 3px #000,
-    0 0 10px rgba(0, 0, 0, 0.8);
-  white-space: nowrap;
-  cursor: pointer;
-  pointer-events: auto;
+  align-items: flex-end;
+  gap: 6px;
+  width: 320px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.marker-text b {
-  color: var(--text);
+.hud-feed li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 10px;
+  border-right: 3px solid var(--cyan);
+  background: linear-gradient(90deg, transparent, rgba(4, 8, 14, 0.8));
+  font-size: 13px;
   font-weight: 600;
+  letter-spacing: 0.04em;
+  animation: feed-in 0.35s ease-out;
+  transition: opacity 0.8s;
 }
 
-.marker-text i {
-  color: var(--c);
-  font-style: normal;
+.hud-feed li b {
+  color: var(--gold);
 }
 
-.marker.is-current .marker-tag::before {
-  animation: ping 1.6s ease-out infinite;
+.hud-feed li.is-trap {
+  border-color: #ff5f7a;
 }
 
-/* On the start screen only the next objective shows; the hero text needs the space. */
-#labels[data-section='hero'] .marker:not(.is-current) {
+.hud-feed li.is-pit {
+  border-color: #35e07a;
+}
+
+.hud-feed li.is-old {
   opacity: 0;
 }
 
-#labels[data-section='contact'] .marker {
-  opacity: 0.85;
+.hud-toast,
+.hud-results {
+  position: absolute;
+  left: calc(50% + 300px);
+  transform: translateX(-50%);
+}
+
+.hud-toast {
+  top: 22%;
+  text-align: center;
+  opacity: 0;
+}
+
+.hud-toast.is-on {
+  animation: toast 2.6s ease-out forwards;
+}
+
+.hud-toast b {
+  display: block;
+  font: italic 700 clamp(30px, 4vw, 56px) / 1 var(--hud-font);
+  letter-spacing: 0.04em;
+  text-shadow:
+    0 0 24px rgba(56, 225, 255, 0.6),
+    0 2px 0 rgba(0, 0, 0, 0.6);
+}
+
+.hud-toast span {
+  display: block;
+  margin-top: 6px;
+  color: var(--gold);
+  font-size: clamp(16px, 1.6vw, 22px);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.hud-toast.is-trap b {
+  color: var(--gold);
+  text-shadow: 0 0 24px rgba(255, 210, 63, 0.6);
+}
+
+.hud-toast.is-trap span {
+  color: #fff;
+}
+
+.hud-toast.is-pit b,
+.hud-toast.is-go b {
+  color: #35e07a;
+  text-shadow: 0 0 24px rgba(53, 224, 122, 0.6);
+}
+
+.hud-toast.is-go b {
+  font-size: clamp(56px, 8vw, 112px);
+}
+
+.hud-results {
+  top: 16%;
+  width: min(360px, 40vw);
+  padding: 18px 22px;
+  border: 1px solid rgba(56, 225, 255, 0.35);
+  border-left: 4px solid var(--gold);
+  background: rgba(4, 8, 14, 0.84);
+  animation: results-in 0.6s ease-out;
+}
+
+.hud-results[hidden] {
+  display: none;
+}
+
+.hud-results h3 {
+  margin: 0 0 10px;
+  color: var(--gold);
+  font: italic 700 20px var(--hud-font);
+  letter-spacing: 0.08em;
+}
+
+.hud-results dl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.hud-results div {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.hud-results dt {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.hud-results dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-speedo {
+  position: absolute;
+  right: clamp(16px, 3vw, 40px);
+  bottom: 24px;
+  width: 190px;
+  height: 190px;
+}
+
+.hud-speedo svg {
+  width: 100%;
+  height: 100%;
+}
+
+.hud-arc-bg,
+.hud-arc {
+  fill: none;
+  stroke-width: 10;
+  stroke-linecap: round;
+}
+
+.hud-arc-bg {
+  stroke: rgba(255, 255, 255, 0.1);
+}
+
+.hud-arc {
+  stroke: var(--cyan);
+  filter: drop-shadow(0 0 6px var(--cyan));
+  transition: stroke-dashoffset 0.15s linear;
+}
+
+.is-boosting .hud-arc {
+  stroke: #ff5f7a;
+  filter: drop-shadow(0 0 8px #ff5f7a);
+}
+
+.hud-kmh {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.hud-kmh b {
+  font: italic 700 52px / 1 var(--hud-font);
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-kmh span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+}
+
+.hud-gear {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--gold);
+  border-radius: 6px;
+  color: var(--gold);
+  font-size: 16px;
+  font-weight: 700;
+  transform: translateX(-50%);
+}
+
+.hud-nos {
+  position: absolute;
+  bottom: 34px;
+  left: -112px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100px;
+  color: #7fdcff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+}
+
+.hud-nos i {
+  display: block;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  transform: skewX(-20deg);
+}
+
+.hud-nos b {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--violet));
+  box-shadow: 0 0 10px var(--cyan);
+}
+
+@keyframes toast {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(1.35);
+  }
+  10% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+@keyframes feed-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+@keyframes results-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(16px);
+  }
+}
+
+@media (max-width: 899px) {
+  .hud-radar {
+    top: 70px;
+    width: 104px;
+  }
+
+  .hud-radar canvas {
+    width: 104px;
+    height: 104px;
+  }
+
+  .hud-level,
+  .hud-lap,
+  .hud-pos,
+  .hud-feed,
+  .hud-nos {
+    display: none;
+  }
+
+  .hud-race {
+    top: auto;
+    bottom: auto;
+    left: 50%;
+    top: 66px;
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  .hud-speedo {
+    top: 66px;
+    right: auto;
+    bottom: auto;
+    left: 12px;
+    width: 104px;
+    height: 104px;
+  }
+
+  .hud-kmh b {
+    font-size: 28px;
+  }
+
+  .hud-kmh span {
+    font-size: 9px;
+  }
+
+  .hud-gear {
+    bottom: 8px;
+    width: 20px;
+    height: 20px;
+    font-size: 11px;
+  }
+
+  .hud-toast,
+  .hud-results {
+    left: 50%;
+  }
+
+  .hud-toast {
+    top: 24%;
+  }
+
+  .hud-results {
+    top: 15%;
+    width: min(320px, 86vw);
+  }
 }
 
 /* ---------- small screens: text at the bottom, scene above it ---------- */
@@ -817,15 +1175,6 @@ p {
   }
 }
 
-@keyframes ping {
-  0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 80%, transparent);
-  }
-  100% {
-    box-shadow: 0 0 0 12px transparent;
-  }
-}
-
 @keyframes pulse {
   from {
     box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 70%, transparent);
@@ -845,5 +1194,9 @@ p {
   *::after {
     animation: none !important;
     transition: none !important;
+  }
+
+  .hud {
+    display: none;
   }
 }

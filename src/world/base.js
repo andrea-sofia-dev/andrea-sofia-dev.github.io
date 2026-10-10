@@ -308,7 +308,11 @@ function floodlight(track, u, metal, beams) {
 // Red and white blocks on the outside of every corner.
 function barriers(track) {
   const spots = [];
-  for (let i = 0; i < track.points.length - 1; i += 3) if (track.corner[i]) spots.push(i);
+  const last = track.points.length - 1;
+  for (let i = 0; i < last; i += 3) {
+    const u = i / last;
+    if (track.corner[i] && (u < 0.37 || u > 0.57)) spots.push(i); // no barriers across the pit lane
+  }
   const mesh = new THREE.InstancedMesh(
     new THREE.BoxGeometry(1.1, 0.7, 0.5),
     new THREE.MeshStandardMaterial({ roughness: 0.7 }),
